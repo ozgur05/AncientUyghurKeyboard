@@ -1,0 +1,105 @@
+{
+  // Ancient (Old) Uyghur keyboard layout — production JSON format.
+  // Unicode block: Old Uyghur, U+10F70..U+10F89 (18 letters, 4 combining
+  // marks, 4 punctuation marks; no digits). Phonetic key positions.
+  //
+  // This file hot-reloads: edit and save, and the running app applies it.
+  // Codepoints may be written "U+XXXX", "0xXXXX", a decimal number, or as
+  // literal text in a JSON string.
+
+  "meta": {
+    "name": "Old Uyghur (Phonetic)",
+    "language": "oui",
+    "description": "Phonetic Old Uyghur layout over U+10F70..U+10F89",
+    "author": "KutadguBilim",
+    "version": 3
+  },
+
+  "behavior": {
+    // Old Uyghur is caseless; Caps Lock should not alter letters.
+    "caps_mode": "ignore",
+    // Apply canonical ordering/composition to combining-mark sequences.
+    "normalize": true
+  },
+
+  "keys": {
+    // ---- Letters (U+10F70..U+10F81), phonetic positions ----
+    "A": { "base": "U+10F70" },
+    "E": { "base": "U+10F70" },
+    "B": { "base": "U+10F71" },
+    "V": { "base": "U+10F71" },
+    "G": { "base": "U+10F72" },
+    "W": { "base": "U+10F73" },
+    "O": { "base": "U+10F73" },
+    "U": { "base": "U+10F73" },
+    "Z": { "base": "U+10F74" },
+    "H": { "base": "U+10F75" },
+    "I": { "base": "U+10F76" },
+    "Y": { "base": "U+10F76" },
+    "K": { "base": "U+10F77" },
+    "Q": { "base": "U+10F77" },
+    "L": { "base": "U+10F78", "shift": "U+10F81" },
+    "M": { "base": "U+10F79" },
+    "N": { "base": "U+10F7A" },
+    "S": { "base": "U+10F7B", "shift": "U+10F7F" },
+    "P": { "base": "U+10F7C" },
+    "F": { "base": "U+10F7C" },
+    "C": { "base": "U+10F7D" },
+    "J": { "base": "U+10F7D" },
+    "R": { "base": "U+10F7E" },
+    "X": { "base": "U+10F7F" },
+    "T": { "base": "U+10F80" },
+    "D": { "base": "U+10F80" },
+
+    // ---- Numbers (pass Latin digits through unchanged) ----
+    "0": { "base": "0" }, "1": { "base": "1" }, "2": { "base": "2" },
+    "3": { "base": "3" }, "4": { "base": "4" }, "5": { "base": "5" },
+    "6": { "base": "6" }, "7": { "base": "7" }, "8": { "base": "8" },
+    "9": { "base": "9" },
+
+    // ---- Combining marks on bracket keys (base / shift) ----
+    "OEM_4": { "base": "U+10F82", "shift": "U+10F84" },
+    "OEM_6": { "base": "U+10F83", "shift": "U+10F85" },
+
+    // ---- Old Uyghur punctuation ----
+    "OEM_5": { "base": "U+10F86", "shift": "U+10F87" },
+    "OEM_1": { "base": "U+10F88", "shift": "U+10F89" },
+
+    // ---- Common ASCII punctuation (pass through, with Shift variants) ----
+    "OEM_MINUS":  { "base": "-", "shift": "_" },
+    "OEM_PLUS":   { "base": "=", "shift": "+" },
+    "OEM_COMMA":  { "base": ",", "shift": "<" },
+    "OEM_PERIOD": { "base": ".", "shift": ">" },
+    "OEM_2":      { "base": "/", "shift": "?" },
+    "OEM_7":      { "base": "'", "shift": "\"" },
+
+    // ---- A dead key example on the backtick key ----
+    // Backtick starts the "dots" dead key; the next letter gets a dot above.
+    "OEM_3": { "base": { "dead": "dots_above" } }
+  },
+
+  // ---- Dead-key composition tables ----
+  "dead_keys": {
+    "dots_above": {
+      // If followed by Space or an unmapped key, emit the combining mark alone.
+      "standalone": "U+10F84",
+      "compose": {
+        // letter -> letter + COMBINING TWO DOTS ABOVE
+        "U+10F70": ["U+10F70", "U+10F84"],
+        "U+10F76": ["U+10F76", "U+10F84"],
+        "U+10F7A": ["U+10F7A", "U+10F84"]
+      }
+    }
+  },
+
+  // ---- Ligatures: collapse a typed sequence into a combined form ----
+  // Example only (Old Uyghur has no precomposed ligatures in Unicode): typing
+  // Lamedh + Aleph is rewritten to Lamedh + Aleph (identity demo). Replace the
+  // "result" with real ligature codepoints if a font/PUA provides them.
+  "ligatures": [
+    {
+      "sequence": ["U+10F78", "U+10F70"],
+      "result":   ["U+10F78", "U+10F70"]
+    }
+  ]
+}

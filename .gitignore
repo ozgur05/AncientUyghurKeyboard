@@ -1,0 +1,21 @@
+# Build output
+/build/
+/dist/
+/out/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# MSVC / Visual Studio
+.vs/
+*.user
+*.suo
+*.obj
+*.exe
+*.pdb
+*.ilk
+
+# Local assets you may add
+src/app.ico

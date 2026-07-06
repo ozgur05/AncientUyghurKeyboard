@@ -1,0 +1,44 @@
+// resources.rc — application icon, version info, and a DPI-aware manifest.
+#include <windows.h>
+#include "resource.h"
+
+/////////////////////////////////////////////////////////////////////////////
+// Icon
+// To brand the tray icon, drop an app.ico next to this file and uncomment the
+// line below. Left disabled by default so the project builds with no binary
+// assets; the app falls back to the system application icon at runtime.
+// IDI_APPICON ICON "app.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+// Version information
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION    0,1,0,0
+ PRODUCTVERSION 0,1,0,0
+ FILEFLAGSMASK  0x3fL
+ FILEFLAGS      0x0L
+ FILEOS         VOS_NT_WINDOWS32
+ FILETYPE       VFT_APP
+ FILESUBTYPE    0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName",      "Open Source"
+            VALUE "FileDescription",  "Ancient Uyghur Keyboard"
+            VALUE "FileVersion",      "0.1.0.0"
+            VALUE "InternalName",     "AncientUyghurKeyboard"
+            VALUE "OriginalFilename", "AncientUyghurKeyboard.exe"
+            VALUE "ProductName",      "Ancient Uyghur Keyboard"
+            VALUE "ProductVersion",   "0.1.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// Manifest — DPI awareness + modern common controls, Win10/11 compatibility.
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
