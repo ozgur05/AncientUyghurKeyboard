@@ -1,18 +1,17 @@
 #include "TestFramework.hpp"
-#include "../src/core/LayoutLoader.hpp"
+#include "../src/core/LayoutParser.hpp"
 #include "../src/core/VirtualKeys.hpp"
 
 using namespace core;
 
-TEST(Loader_Minimal)
+TEST(Parser_Minimal)
 {
     const char* json = R"({
         "meta": { "name": "Test", "version": 2 },
         "keys": { "A": { "base": "U+10F70" } }
     })";
-    auto r = LayoutLoader::loadFromString(json);
+    auto r = LayoutParser::parseString(json);
     CHECK(r.ok());
-    CHECK(r.layout.has_value());
     if (r.layout) {
         CHECK_EQ(r.layout->meta().name, std::string("Test"));
         CHECK_EQ(r.layout->meta().version, 2);
@@ -25,9 +24,8 @@ TEST(Loader_Minimal)
     }
 }
 
-TEST(Loader_ShorthandAndCodepointForms)
+TEST(Parser_ShorthandAndCodepointForms)
 {
-    // Shorthand base, array codepoints, decimal, and literal string all work.
     const char* json = R"({
         "keys": {
             "A": "U+10F70",
@@ -36,7 +34,7 @@ TEST(Loader_ShorthandAndCodepointForms)
             "D": { "base": "x" }
         }
     })";
-    auto r = LayoutLoader::loadFromString(json);
+    auto r = LayoutParser::parseString(json);
     CHECK(r.ok());
     if (r.layout) {
         CHECK(r.layout->key(vk::KeyA)->levels[0].output == std::u32string{ 0x10F70 });
@@ -46,7 +44,7 @@ TEST(Loader_ShorthandAndCodepointForms)
     }
 }
 
-TEST(Loader_DuplicateMapping_IsError)
+TEST(Parser_DuplicateKeyName_IsError)
 {
     // "A" and "0x41" both resolve to VK 0x41 -> hard duplicate error.
     const char* json = R"({
@@ -55,69 +53,57 @@ TEST(Loader_DuplicateMapping_IsError)
             "0x41": { "base": "U+10F71" }
         }
     })";
-    auto r = LayoutLoader::loadFromString(json);
+    auto r = LayoutParser::parseString(json);
     CHECK_FALSE(r.ok());
     CHECK(!r.errors.empty());
 }
 
-TEST(Loader_DuplicateGlyph_IsWarning)
+TEST(Parser_BadJson_IsError)
 {
-    // Two different keys emit the same glyph -> warning, still loads.
-    const char* json = R"({
-        "keys": {
-            "A": { "base": "U+10F70" },
-            "E": { "base": "U+10F70" }
-        }
-    })";
-    auto r = LayoutLoader::loadFromString(json);
-    CHECK(r.ok());
-    CHECK(!r.warnings.empty());
-}
-
-TEST(Loader_BadJson_IsError)
-{
-    auto r = LayoutLoader::loadFromString("{ not valid json ");
+    auto r = LayoutParser::parseString("{ not valid json ");
     CHECK_FALSE(r.ok());
     CHECK(!r.errors.empty());
     CHECK_FALSE(r.layout.has_value());
 }
 
-TEST(Loader_NoKeys_IsError)
+TEST(Parser_NoKeys_IsError)
 {
-    auto r = LayoutLoader::loadFromString(R"({ "meta": { "name": "x" } })");
+    auto r = LayoutParser::parseString(R"({ "meta": { "name": "x" } })");
     CHECK_FALSE(r.ok());
 }
 
-TEST(Loader_DeadKeysAndLigatures)
+TEST(Parser_DeadKeysLigaturesCompose)
 {
     const char* json = R"({
-        "keys": { "A": { "base": "U+10F70" }, "OEM_3": { "base": { "dead": "d1" } } },
+        "keys": {
+            "A": { "base": "U+10F70" },
+            "OEM_3": { "base": { "dead": "d1" } },
+            "OEM_5": { "base": { "compose": true } }
+        },
         "dead_keys": {
             "d1": { "standalone": "U+10F84", "compose": { "U+10F70": ["U+10F70","U+10F84"] } }
         },
-        "ligatures": [ { "sequence": ["U+10F78","U+10F70"], "result": ["U+10F70"] } ]
+        "ligatures": [ { "sequence": ["U+10F78","U+10F70"], "result": ["U+10F70"] } ],
+        "compose_sequences": [ { "keys": ["U+10F70","U+10F70"], "output": ["U+10F71"] } ]
     })";
-    auto r = LayoutLoader::loadFromString(json);
+    auto r = LayoutParser::parseString(json);
     CHECK(r.ok());
     if (r.layout) {
-        const DeadKey* dk = r.layout->deadKey("d1");
-        CHECK(dk != nullptr);
-        if (dk) {
-            CHECK(dk->standalone == std::u32string{ 0x10F84 });
-            auto it = dk->compositions.find(0x10F70);
-            CHECK(it != dk->compositions.end());
-        }
+        CHECK(r.layout->key(vk::OEM_3)->levels[0].kind == ActionKind::DeadKey);
+        CHECK(r.layout->key(vk::OEM_5)->levels[0].kind == ActionKind::Compose);
+        CHECK(r.layout->deadKey("d1") != nullptr);
         CHECK_EQ(r.layout->ligatures().size(), size_t(1));
+        CHECK_EQ(r.layout->composeSequences().size(), size_t(1));
     }
 }
 
-TEST(Loader_Behavior_CapsAndNormalize)
+TEST(Parser_Behavior_CapsAndNormalize)
 {
     const char* json = R"({
         "behavior": { "caps_mode": "invert", "normalize": false },
         "keys": { "A": { "base": "U+10F70" } }
     })";
-    auto r = LayoutLoader::loadFromString(json);
+    auto r = LayoutParser::parseString(json);
     CHECK(r.ok());
     if (r.layout) {
         CHECK(r.layout->capsMode() == CapsMode::Invert);

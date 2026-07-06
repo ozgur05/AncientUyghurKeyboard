@@ -15,7 +15,10 @@ option(AUK_BUILD_TESTS "Build unit tests" ON)
 # ---------------------------------------------------------------------------
 add_library(auk_core STATIC
     src/core/KeyboardLayout.cpp
-    src/core/LayoutLoader.cpp
+    src/core/LayoutParser.cpp
+    src/core/LayoutValidator.cpp
+    src/core/LayoutRegistry.cpp
+    src/core/KeyboardLayoutManager.cpp
     src/core/Normalizer.cpp
     src/core/Composer.cpp
 )
@@ -67,7 +70,10 @@ if(AUK_BUILD_TESTS)
         tests/test_unicode.cpp
         tests/test_virtualkeys.cpp
         tests/test_normalizer.cpp
-        tests/test_layoutloader.cpp
+        tests/test_layoutparser.cpp
+        tests/test_layoutvalidator.cpp
+        tests/test_registry.cpp
+        tests/test_manager.cpp
         tests/test_composer.cpp
     )
     target_link_libraries(auk_tests PRIVATE auk_core)

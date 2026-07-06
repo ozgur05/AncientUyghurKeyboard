@@ -1,6 +1,6 @@
 #include "TestFramework.hpp"
 #include "../src/core/Composer.hpp"
-#include "../src/core/LayoutLoader.hpp"
+#include "../src/core/LayoutParser.hpp"
 #include "../src/core/VirtualKeys.hpp"
 
 using namespace core;
@@ -13,7 +13,8 @@ const char* kJson = R"({
         "A": { "base": "U+10F70", "shift": "U+10F71" },
         "L": { "base": "U+10F78" },
         "OEM_4": { "base": "U+0308" },
-        "OEM_3": { "base": { "dead": "d1" } }
+        "OEM_3": { "base": { "dead": "d1" } },
+        "OEM_5": { "base": { "compose": true } }
     },
     "dead_keys": {
         "d1": {
@@ -23,6 +24,9 @@ const char* kJson = R"({
     },
     "ligatures": [
         { "sequence": ["U+10F78", "U+10F70"], "result": ["U+10FAA"] }
+    ],
+    "compose_sequences": [
+        { "keys": ["U+10F70", "U+10F70"], "output": ["U+10F99"] }
     ]
 })";
 
@@ -34,7 +38,7 @@ KeyInput key(unsigned vk, bool shift = false, bool caps = false)
 
 TEST(Composer_BasicEmit)
 {
-    auto r = LayoutLoader::loadFromString(kJson);
+    auto r = LayoutParser::parseString(kJson);
     CHECK(r.ok());
     Composer c; c.setLayout(&*r.layout);
 
@@ -46,7 +50,7 @@ TEST(Composer_BasicEmit)
 
 TEST(Composer_ShiftLevel)
 {
-    auto r = LayoutLoader::loadFromString(kJson);
+    auto r = LayoutParser::parseString(kJson);
     Composer c; c.setLayout(&*r.layout);
 
     EmitOp op = c.process(key(vk::KeyA, /*shift*/ true));
@@ -55,7 +59,7 @@ TEST(Composer_ShiftLevel)
 
 TEST(Composer_CapsInvertsLetters)
 {
-    auto r = LayoutLoader::loadFromString(kJson);
+    auto r = LayoutParser::parseString(kJson);
     Composer c; c.setLayout(&*r.layout);
 
     // caps on, shift off -> inverted to shift level.
@@ -65,7 +69,7 @@ TEST(Composer_CapsInvertsLetters)
 
 TEST(Composer_DeadKeyCompose)
 {
-    auto r = LayoutLoader::loadFromString(kJson);
+    auto r = LayoutParser::parseString(kJson);
     Composer c; c.setLayout(&*r.layout);
 
     EmitOp d = c.process(key(vk::OEM_3));   // dead key
@@ -80,7 +84,7 @@ TEST(Composer_DeadKeyCompose)
 
 TEST(Composer_DeadKeyThenSpace_Standalone)
 {
-    auto r = LayoutLoader::loadFromString(kJson);
+    auto r = LayoutParser::parseString(kJson);
     Composer c; c.setLayout(&*r.layout);
 
     c.process(key(vk::OEM_3));
@@ -91,7 +95,7 @@ TEST(Composer_DeadKeyThenSpace_Standalone)
 
 TEST(Composer_DeadKeyThenUnmapped_FlushesStandalone)
 {
-    auto r = LayoutLoader::loadFromString(kJson);
+    auto r = LayoutParser::parseString(kJson);
     Composer c; c.setLayout(&*r.layout);
 
     c.process(key(vk::OEM_3));
@@ -103,7 +107,7 @@ TEST(Composer_DeadKeyThenUnmapped_FlushesStandalone)
 
 TEST(Composer_LigatureReconciles)
 {
-    auto r = LayoutLoader::loadFromString(kJson);
+    auto r = LayoutParser::parseString(kJson);
     Composer c; c.setLayout(&*r.layout);
 
     EmitOp l = c.process(key(vk::KeyL));     // Lamedh
@@ -117,7 +121,7 @@ TEST(Composer_LigatureReconciles)
 
 TEST(Composer_NfcReconciles)
 {
-    auto r = LayoutLoader::loadFromString(kJson);
+    auto r = LayoutParser::parseString(kJson);
     Composer c; c.setLayout(&*r.layout);
 
     // Type Aleph then a combining diaeresis mapped to OEM_4; NFC leaves them
@@ -130,7 +134,7 @@ TEST(Composer_NfcReconciles)
 
 TEST(Composer_BackspacePopsWindow)
 {
-    auto r = LayoutLoader::loadFromString(kJson);
+    auto r = LayoutParser::parseString(kJson);
     Composer c; c.setLayout(&*r.layout);
 
     c.process(key(vk::KeyA));
@@ -142,7 +146,7 @@ TEST(Composer_BackspacePopsWindow)
 
 TEST(Composer_BackspaceCancelsDeadKey)
 {
-    auto r = LayoutLoader::loadFromString(kJson);
+    auto r = LayoutParser::parseString(kJson);
     Composer c; c.setLayout(&*r.layout);
 
     c.process(key(vk::OEM_3));
@@ -154,7 +158,7 @@ TEST(Composer_BackspaceCancelsDeadKey)
 
 TEST(Composer_SpaceIsBoundary)
 {
-    auto r = LayoutLoader::loadFromString(kJson);
+    auto r = LayoutParser::parseString(kJson);
     Composer c; c.setLayout(&*r.layout);
 
     c.process(key(vk::KeyL));                // Lamedh
@@ -166,4 +170,48 @@ TEST(Composer_SpaceIsBoundary)
     EmitOp a = c.process(key(vk::KeyA));
     CHECK_EQ(a.backspaces, 0);
     CHECK(a.insert == std::u32string{ 0x10F70 });
+}
+
+TEST(Composer_ComposeSequenceEmits)
+{
+    auto r = LayoutParser::parseString(kJson);
+    Composer c; c.setLayout(&*r.layout);
+
+    EmitOp start = c.process(key(vk::OEM_5));   // begin compose
+    CHECK(start.suppress);
+    CHECK(start.insert.empty());
+    CHECK(c.composing());
+
+    EmitOp a1 = c.process(key(vk::KeyA));        // first key: prefix, swallowed
+    CHECK(a1.suppress);
+    CHECK(a1.insert.empty());
+    CHECK(c.composing());
+
+    EmitOp a2 = c.process(key(vk::KeyA));        // completes A A -> U+10F99
+    CHECK_FALSE(c.composing());
+    CHECK(a2.insert == std::u32string{ 0x10F99 });
+}
+
+TEST(Composer_ComposeDeadEndAborts)
+{
+    auto r = LayoutParser::parseString(kJson);
+    Composer c; c.setLayout(&*r.layout);
+
+    c.process(key(vk::OEM_5));                    // begin compose
+    c.process(key(vk::KeyA));                     // 'A' -> prefix of AA
+    EmitOp l = c.process(key(vk::KeyL));          // 'AL' matches nothing -> abort
+    CHECK_FALSE(c.composing());
+    CHECK(l.insert.empty());                      // failed compose produces nothing
+}
+
+TEST(Composer_ComposeEscapeCancels)
+{
+    auto r = LayoutParser::parseString(kJson);
+    Composer c; c.setLayout(&*r.layout);
+
+    c.process(key(vk::OEM_5));
+    c.process(key(vk::KeyA));
+    EmitOp esc = c.process(key(vk::Escape));
+    CHECK(esc.suppress);
+    CHECK_FALSE(c.composing());
 }

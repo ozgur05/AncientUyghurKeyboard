@@ -15,6 +15,7 @@ public:
     void         SetEnabled(bool e) { m_enabled = e; }
 
     const std::wstring& LayoutName() const { return m_layoutName; }
+    void         SetLayoutName(const std::wstring& n) { m_layoutName = n; }
     LogLevel     GetLogLevel() const { return m_logLevel; }
 
     // Absolute paths derived from the executable / %APPDATA% locations.

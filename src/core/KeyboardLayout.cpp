@@ -64,6 +64,25 @@ std::optional<Ligature> KeyboardLayout::matchLigature(const std::u32string& rece
     return std::nullopt;
 }
 
+ComposeMatch KeyboardLayout::composeLookup(const std::u32string& buffer,
+                                           std::u32string& out) const
+{
+    if (buffer.empty())
+        return m_compose.empty() ? ComposeMatch::None : ComposeMatch::Prefix;
+
+    bool prefix = false;
+    for (const auto& seq : m_compose) {
+        if (seq.keys == buffer) {           // exact (greedy: first exact wins)
+            out = seq.output;
+            return ComposeMatch::Exact;
+        }
+        if (seq.keys.size() > buffer.size() &&
+            seq.keys.compare(0, buffer.size(), buffer) == 0)
+            prefix = true;                  // buffer is a proper prefix of seq
+    }
+    return prefix ? ComposeMatch::Prefix : ComposeMatch::None;
+}
+
 void KeyboardLayout::sortLigatures()
 {
     std::sort(m_ligatures.begin(), m_ligatures.end(),

@@ -1,0 +1,44 @@
+{
+  // Ancient (Old) Uyghur — POSITIONAL (QWERTY-order) layout.
+  // A second selectable layout to demonstrate runtime switching. Letters are
+  // assigned by physical key position (QWERTY reading order) rather than
+  // phonetically, cycling through the 18 Old Uyghur letters U+10F70..U+10F81.
+  // (Some letters repeat because there are 26 letter keys but 18 letters; the
+  //  validator flags those as duplicate-glyph warnings, which is expected.)
+
+  "meta": {
+    "id": "old_uyghur_qwerty",
+    "name": "Old Uyghur (QWERTY positional)",
+    "language": "oui",
+    "description": "Positional Old Uyghur layout in QWERTY key order",
+    "author": "KutadguBilim",
+    "version": 1
+  },
+
+  "behavior": {
+    "caps_mode": "ignore",
+    "normalize": true
+  },
+
+  "keys": {
+    // Top row  Q W E R T Y U I O P
+    "Q": "U+10F70", "W": "U+10F71", "E": "U+10F72", "R": "U+10F73", "T": "U+10F74",
+    "Y": "U+10F75", "U": "U+10F76", "I": "U+10F77", "O": "U+10F78", "P": "U+10F79",
+    // Home row A S D F G H J K L
+    "A": "U+10F7A", "S": "U+10F7B", "D": "U+10F7C", "F": "U+10F7D", "G": "U+10F7E",
+    "H": "U+10F7F", "J": "U+10F80", "K": "U+10F81", "L": "U+10F70",
+    // Bottom row Z X C V B N M
+    "Z": "U+10F71", "X": "U+10F72", "C": "U+10F73", "V": "U+10F74", "B": "U+10F75",
+    "N": "U+10F76", "M": "U+10F77",
+
+    // Numbers pass through.
+    "0": "0", "1": "1", "2": "2", "3": "3", "4": "4",
+    "5": "5", "6": "6", "7": "7", "8": "8", "9": "9",
+
+    // Combining marks + punctuation, same positions as the phonetic layout.
+    "OEM_4": { "base": "U+10F82", "shift": "U+10F84" },
+    "OEM_6": { "base": "U+10F83", "shift": "U+10F85" },
+    "OEM_5": { "base": "U+10F86", "shift": "U+10F87" },
+    "OEM_1": { "base": "U+10F88", "shift": "U+10F89" }
+  }
+}

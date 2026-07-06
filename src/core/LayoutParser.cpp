@@ -1,4 +1,4 @@
-#include "LayoutLoader.hpp"
+#include "LayoutParser.hpp"
 #include "VirtualKeys.hpp"
 #include "Unicode.hpp"
 
@@ -48,7 +48,6 @@ std::optional<std::u32string> parseOutput(const json::Value& node, std::string& 
 {
     if (node.isString())
         return unicode::utf8ToUtf32(node.asString());
-
     if (node.isArray()) {
         std::u32string out;
         for (const auto& e : node.asArray()) {
@@ -73,14 +72,14 @@ std::optional<std::u32string> parseOutput(const json::Value& node, std::string& 
 
 static const char* kLevelNames[] = { "base", "shift", "altgr", "shift_altgr" };
 
-bool LayoutLoader::Builder::parseAction(const json::Value& node,
+bool LayoutParser::Builder::parseAction(const json::Value& node,
                                         const std::string& ctx, KeyAction& out)
 {
     // A level may be:
-    //   "text"                    -> Emit
-    //   ["U+..","U+.."]           -> Emit (codepoints)
-    //   { "emit": ... }           -> Emit
-    //   { "dead": "acute" }       -> DeadKey
+    //   "text" | ["U+.."] | number     -> Emit
+    //   { "emit": ... }                 -> Emit
+    //   { "dead": "acute" }             -> DeadKey
+    //   { "compose": true }             -> Compose (start a compose sequence)
     if (node.isString() || node.isArray() || node.isNumber()) {
         std::string err;
         auto cps = parseOutput(node, err);
@@ -97,6 +96,11 @@ bool LayoutLoader::Builder::parseAction(const json::Value& node,
             out.deadKey = d.asString();
             return true;
         }
+        if (node.contains("compose")) {
+            if (!node["compose"].asBool()) { errors.push_back(ctx + ": 'compose' must be true"); return false; }
+            out.kind = ActionKind::Compose;
+            return true;
+        }
         if (node.contains("emit")) {
             std::string err;
             auto cps = parseOutput(node["emit"], err);
@@ -106,16 +110,17 @@ bool LayoutLoader::Builder::parseAction(const json::Value& node,
             if (node.contains("cased")) out.cased = node["cased"].asBool();
             return true;
         }
-        errors.push_back(ctx + ": object action needs 'emit' or 'dead'");
+        errors.push_back(ctx + ": object action needs 'emit', 'dead', or 'compose'");
         return false;
     }
     errors.push_back(ctx + ": unsupported action type");
     return false;
 }
 
-void LayoutLoader::Builder::parseMeta(const json::Value& v)
+void LayoutParser::Builder::parseMeta(const json::Value& v)
 {
     auto& m = layout.meta();
+    if (v["id"].isString())          m.id          = v["id"].asString();
     if (v["name"].isString())        m.name        = v["name"].asString();
     if (v["language"].isString())    m.language    = v["language"].asString();
     if (v["description"].isString()) m.description = v["description"].asString();
@@ -123,9 +128,8 @@ void LayoutLoader::Builder::parseMeta(const json::Value& v)
     if (v["version"].isNumber())     m.version     = v["version"].asInt(1);
 }
 
-void LayoutLoader::Builder::parseBehavior(const json::Value& v)
+void LayoutParser::Builder::parseBehavior(const json::Value& v)
 {
-    // caps_mode: "ignore" | "shift_letters" | "invert"
     if (v["caps_mode"].isString()) {
         const std::string& c = v["caps_mode"].asString();
         if      (c == "ignore")        layout.setCapsMode(CapsMode::Ignore);
@@ -137,7 +141,7 @@ void LayoutLoader::Builder::parseBehavior(const json::Value& v)
         layout.setNormalize(v["normalize"].asBool());
 }
 
-void LayoutLoader::Builder::parseDeadKeys(const json::Value& v)
+void LayoutParser::Builder::parseDeadKeys(const json::Value& v)
 {
     if (v.isNull()) return;
     if (!v.isObject()) { errors.push_back("'dead_keys' must be an object"); return; }
@@ -157,24 +161,23 @@ void LayoutLoader::Builder::parseDeadKeys(const json::Value& v)
             warnings.push_back("dead_keys." + id + " has no 'compose' table");
         } else {
             for (const auto& [next, res] : comps.asObject()) {
-                json::Value key(next); // reuse token parser for the map key
+                json::Value key(next);
                 auto cp = parseCodepointToken(key, err);
                 if (!cp) {
-                    // Allow single-character literal keys too.
                     auto u32 = unicode::utf8ToUtf32(next);
                     if (u32.size() == 1) cp = u32[0];
                     else { errors.push_back("dead_keys." + id + " key '" + next + "': " + err); continue; }
                 }
-                auto out = parseOutput(res, err);
-                if (!out) { errors.push_back("dead_keys." + id + "['" + next + "']: " + err); continue; }
-                dk.compositions[*cp] = *out;
+                auto o = parseOutput(res, err);
+                if (!o) { errors.push_back("dead_keys." + id + "['" + next + "']: " + err); continue; }
+                dk.compositions[*cp] = *o;
             }
         }
         layout.addDeadKey(dk);
     }
 }
 
-void LayoutLoader::Builder::parseLigatures(const json::Value& v)
+void LayoutParser::Builder::parseLigatures(const json::Value& v)
 {
     if (v.isNull()) return;
     if (!v.isArray()) { errors.push_back("'ligatures' must be an array"); return; }
@@ -190,25 +193,36 @@ void LayoutLoader::Builder::parseLigatures(const json::Value& v)
     }
 }
 
-void LayoutLoader::Builder::parseKeys(const json::Value& v)
+void LayoutParser::Builder::parseCompose(const json::Value& v)
+{
+    if (v.isNull()) return;
+    if (!v.isArray()) { errors.push_back("'compose_sequences' must be an array"); return; }
+
+    for (const auto& e : v.asArray()) {
+        std::string err;
+        auto keys = parseOutput(e["keys"], err);
+        if (!keys) { errors.push_back("compose.keys: " + err); continue; }
+        auto out = parseOutput(e["output"], err);
+        if (!out) { errors.push_back("compose.output: " + err); continue; }
+        if (keys->empty()) { warnings.push_back("compose sequence with empty keys skipped"); continue; }
+        layout.addCompose(ComposeSequence{ *keys, *out });
+    }
+}
+
+void LayoutParser::Builder::parseKeys(const json::Value& v)
 {
     if (!v.isObject()) { errors.push_back("'keys' must be an object"); return; }
 
-    // Duplicate detection:
-    //  - hard dupe: same key name appears twice -> JSON map already merges,
-    //    so instead we detect same VK reached via two different names.
-    //  - soft dupe: same output glyph string produced by two (vk,level) slots.
-    std::map<unsigned, std::string> vkToName;      // vk -> first name that set it
-    std::map<std::u32string, std::string> emitted; // output -> "name/level"
+    std::map<unsigned, std::string> vkToName; // catch two names -> same VK
 
     for (const auto& [name, node] : v.asObject()) {
         auto vk = vk::fromName(name);
         if (!vk) { warnings.push_back("keys: unrecognized key name '" + name + "', skipped"); continue; }
 
         if (auto it = vkToName.find(*vk); it != vkToName.end()) {
+            std::ostringstream o; o << std::hex << *vk;
             errors.push_back("duplicate key mapping: '" + name + "' and '" +
-                             it->second + "' both resolve to VK 0x" +
-                             [&]{ std::ostringstream o; o << std::hex << *vk; return o.str(); }());
+                             it->second + "' both resolve to VK 0x" + o.str());
             continue;
         }
         vkToName[*vk] = name;
@@ -221,26 +235,14 @@ void LayoutLoader::Builder::parseKeys(const json::Value& v)
             KeyAction act{};
             std::string ctx = "keys." + name + "." + kLevelNames[static_cast<size_t>(lvl)];
             if (!parseAction(lvlNode, ctx, act)) return;
-
-            // Mark letter keys as cased so Caps Lock can act on them.
             if (vk::isLetter(*vk)) { act.cased = true; anyCased = true; }
-
-            // Soft duplicate check for Emit actions.
-            if (act.kind == ActionKind::Emit && !act.output.empty()) {
-                if (auto e = emitted.find(act.output); e != emitted.end()) {
-                    warnings.push_back("duplicate output: " + ctx +
-                                       " emits same glyph(s) as " + e->second);
-                } else {
-                    emitted[act.output] = ctx;
-                }
-            }
             def.levels[static_cast<size_t>(lvl)] = std::move(act);
         };
 
         if (node.isObject() && (node.contains("base") || node.contains("shift") ||
                                 node.contains("altgr") || node.contains("shift_altgr") ||
-                                node.contains("dead") || node.contains("emit"))) {
-            // Object form: explicit levels, OR a single action object.
+                                node.contains("dead") || node.contains("emit") ||
+                                node.contains("compose"))) {
             if (node.contains("base") || node.contains("shift") ||
                 node.contains("altgr") || node.contains("shift_altgr")) {
                 handleLevel(Level::Base,       node["base"]);
@@ -248,12 +250,10 @@ void LayoutLoader::Builder::parseKeys(const json::Value& v)
                 handleLevel(Level::AltGr,      node["altgr"]);
                 handleLevel(Level::ShiftAltGr, node["shift_altgr"]);
             } else {
-                // Whole node is one action -> Base level.
-                handleLevel(Level::Base, node);
+                handleLevel(Level::Base, node); // single action object -> Base
             }
         } else {
-            // Shorthand: the node itself is the Base-level output.
-            handleLevel(Level::Base, node);
+            handleLevel(Level::Base, node);     // shorthand output -> Base
         }
 
         def.cased = anyCased;
@@ -261,14 +261,15 @@ void LayoutLoader::Builder::parseKeys(const json::Value& v)
     }
 }
 
-void LayoutLoader::Builder::build(const json::Value& root)
+void LayoutParser::Builder::build(const json::Value& root)
 {
     if (!root.isObject()) { errors.push_back("top-level JSON must be an object"); return; }
 
-    if (root.contains("meta"))      parseMeta(root["meta"]);
-    if (root.contains("behavior"))  parseBehavior(root["behavior"]);
-    if (root.contains("dead_keys")) parseDeadKeys(root["dead_keys"]);
-    if (root.contains("ligatures")) parseLigatures(root["ligatures"]);
+    if (root.contains("meta"))              parseMeta(root["meta"]);
+    if (root.contains("behavior"))          parseBehavior(root["behavior"]);
+    if (root.contains("dead_keys"))         parseDeadKeys(root["dead_keys"]);
+    if (root.contains("ligatures"))         parseLigatures(root["ligatures"]);
+    if (root.contains("compose_sequences")) parseCompose(root["compose_sequences"]);
 
     if (!root.contains("keys"))
         errors.push_back("layout has no 'keys' section");
@@ -283,9 +284,9 @@ void LayoutLoader::Builder::build(const json::Value& root)
 // Public entry points
 // ---------------------------------------------------------------------------
 
-LoadResult LayoutLoader::loadFromString(const std::string& jsonText)
+ParseResult LayoutParser::parseString(const std::string& jsonText)
 {
-    LoadResult result;
+    ParseResult result;
     json::Value root;
     try {
         root = json::parse(jsonText);
@@ -306,9 +307,9 @@ LoadResult LayoutLoader::loadFromString(const std::string& jsonText)
     return result;
 }
 
-LoadResult LayoutLoader::loadFromFile(const std::string& path)
+ParseResult LayoutParser::parseFile(const std::string& path)
 {
-    LoadResult result;
+    ParseResult result;
     std::ifstream in(path, std::ios::binary);
     if (!in.is_open()) {
         result.errors.push_back("cannot open layout file: " + path);
@@ -316,7 +317,7 @@ LoadResult LayoutLoader::loadFromFile(const std::string& path)
     }
     std::ostringstream ss;
     ss << in.rdbuf();
-    return loadFromString(ss.str());
+    return parseString(ss.str());
 }
 
 } // namespace core

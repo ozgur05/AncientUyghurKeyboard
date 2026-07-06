@@ -8,11 +8,12 @@
   // literal text in a JSON string.
 
   "meta": {
+    "id": "old_uyghur",
     "name": "Old Uyghur (Phonetic)",
     "language": "oui",
     "description": "Phonetic Old Uyghur layout over U+10F70..U+10F89",
     "author": "KutadguBilim",
-    "version": 3
+    "version": 4
   },
 
   "behavior": {
@@ -70,8 +71,10 @@
     "OEM_PLUS":   { "base": "=", "shift": "+" },
     "OEM_COMMA":  { "base": ",", "shift": "<" },
     "OEM_PERIOD": { "base": ".", "shift": ">" },
-    "OEM_2":      { "base": "/", "shift": "?" },
     "OEM_7":      { "base": "'", "shift": "\"" },
+
+    // ---- AltGr demo: AltGr+/ starts a compose sequence ----
+    "OEM_2": { "base": "/", "shift": "?", "altgr": { "compose": true } },
 
     // ---- A dead key example on the backtick key ----
     // Backtick starts the "dots" dead key; the next letter gets a dot above.
@@ -100,6 +103,15 @@
     {
       "sequence": ["U+10F78", "U+10F70"],
       "result":   ["U+10F78", "U+10F70"]
+    }
+  ],
+
+  // ---- Compose sequences (start with AltGr+/, then type the keys) ----
+  // Demo: AltGr+/ then Aleph then Yodh -> Aleph + COMBINING TWO DOTS ABOVE.
+  "compose_sequences": [
+    {
+      "keys":   ["U+10F70", "U+10F76"],
+      "output": ["U+10F70", "U+10F84"]
     }
   ]
 }

@@ -24,9 +24,9 @@ injected via `SendInput` with `KEYEVENTF_UNICODE`. This avoids COM/IME/KLC
 registration entirely, so there is nothing to "install" — just run the EXE.
 
 ```
-key + modifiers ─▶ Composer (dead keys · ligatures · NFC) ─▶ UTF-16 ─▶ SendInput
+key + modifiers ─▶ Composer (dead keys · compose · ligatures · NFC) ─▶ UTF-16 ─▶ SendInput
                       ▲
-              KeyboardLayout  ◀── LayoutLoader ◀── layouts/*.json
+              KeyboardLayout ◀ Parser ◀ Validator ◀ Registry ◀ Manager ◀ layouts/*.json
 ```
 
 ### Architecture
@@ -36,21 +36,27 @@ unit-tested on any platform; a thin Windows layer does the hooking and I/O.
 
 | Module            | Responsibility                                             |
 |-------------------|------------------------------------------------------------|
-| `Application`     | Tray icon, menu, message loop, hot-reload, lifecycle       |
+| `Application`     | Tray icon, layout-switch menu, message loop, hot-reload    |
 | `KeyboardEngine`  | Low-level hook; modifier/Caps detection; `SendInput`       |
-| `core::Composer`  | Dead-key state machine, ligatures, NFC reconciliation      |
-| `core::KeyboardLayout` | Parsed layout: levels, dead keys, ligatures, lookups  |
-| `core::LayoutLoader`   | JSON → layout, validation, duplicate detection        |
+| `core::Composer`  | Dead keys, compose sequences, ligatures, NFC reconciliation|
+| `core::KeyboardLayout` | Parsed layout: levels, dead keys, compose, ligatures  |
+| `core::LayoutParser`   | JSON → layout (structural parsing)                    |
+| `core::LayoutValidator`| Semantic checks: dead-key refs, dupes, compose ambiguity |
+| `core::LayoutRegistry` | Discover `*.json` layouts in a directory              |
+| `core::KeyboardLayoutManager` | Active layout + runtime switching + reload     |
 | `core::Normalizer`     | Bundled canonical ordering + composition (NFC)        |
 | `core::Unicode` / `core::vk` | UTF conversions; key-name ↔ VK resolution       |
 | `Config` / `Logger` | Settings + logging under `%APPDATA%\AncientUyghurKeyboard` |
 
 ```
-Application ──owns──▶ KeyboardEngine ──owns──▶ core::Composer ──uses──▶ core::KeyboardLayout
-     │                                                                       ▲
-     ├─ hot reload ─▶ core::LayoutLoader ──parses──▶ layouts/old_uyghur.json ┘
-     └─uses─▶ Config / Logger
+Application ─owns─▶ KeyboardLayoutManager ─owns─▶ LayoutRegistry ─▶ Parser + Validator
+     │                        │  (active KeyboardLayout*, change callback)
+     ├─ SetLayout ────────────┘────────────────▶ KeyboardEngine ─owns─▶ Composer
+     └─ hot reload / tray menu ▶ switchTo(id) / reloadCurrent()
 ```
+
+Switch layouts at runtime from the tray (right-click ▶ **Layout**). Add a
+`.json` file to the `layouts\` folder and it appears in the menu automatically.
 
 > **Normalization & ligature caveat.** Because a hook-based keyboard cannot read
 > the target app's text buffer, cross-keystroke normalization/ligatures are

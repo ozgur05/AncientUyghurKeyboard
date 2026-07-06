@@ -3,9 +3,10 @@
 
 #include <windows.h>
 #include <string>
+#include <vector>
 #include "Config.h"
 #include "KeyboardEngine.h"
-#include "core/KeyboardLayout.hpp"
+#include "core/KeyboardLayoutManager.hpp"
 
 class Application {
 public:
@@ -22,9 +23,11 @@ private:
     bool InitInstance();
     void Shutdown();
 
-    // Layout loading + hot reload.
-    bool LoadLayout(bool initial);
-    void CheckLayoutReload();
+    // Layout management.
+    bool InitLayouts();                       // scan + activate + wire engine
+    void SwitchLayout(const std::string& id); // runtime switch
+    void UpdateWatchState();                   // track current file for hot reload
+    void CheckLayoutReload();                  // poll current file; reload on change
 
     // Tray helpers.
     void AddTrayIcon();
@@ -43,10 +46,14 @@ private:
     HWND            m_hwnd      = nullptr;
     NOTIFYICONDATAW m_nid       = {};
 
-    Config               m_config;
-    core::KeyboardLayout m_layout;      // owned; engine holds a pointer to it
-    KeyboardEngine       m_engine;
+    Config                        m_config;
+    core::KeyboardLayoutManager   m_manager;   // owns layouts + active pointer
+    KeyboardEngine                m_engine;
 
-    std::wstring m_layoutPath;          // watched file
-    FILETIME     m_layoutWriteTime = {}; // last-seen modification time
+    // Menu id -> layout id, rebuilt each time the context menu is shown.
+    std::vector<std::string> m_menuLayoutIds;
+
+    // Hot-reload watch of the active layout file.
+    std::wstring m_watchPath;
+    FILETIME     m_watchWriteTime = {};
 };

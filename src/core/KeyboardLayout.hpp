@@ -1,7 +1,7 @@
 // KeyboardLayout.hpp — in-memory model of one keyboard layout.
 //
 // A KeyboardLayout is pure data + lookups (no OS calls, no I/O). It is produced
-// by LayoutLoader from a JSON file and consumed by Composer. This separation is
+// by LayoutParser from a JSON file and consumed by Composer. This separation is
 // what lets the whole mapping system be unit-tested without Windows.
 #pragma once
 
@@ -34,7 +34,8 @@ enum class CapsMode : uint8_t {
 enum class ActionKind : uint8_t {
     None,       // unmapped -> pass through to the OS
     Emit,       // output a fixed string of codepoints
-    DeadKey     // begin/participate in a dead-key composition
+    DeadKey,    // begin/participate in a dead-key composition
+    Compose     // begin a multi-key compose sequence (e.g. Compose a e -> æ)
 };
 
 struct KeyAction {
@@ -65,7 +66,18 @@ struct Ligature {
     std::u32string result;   // replacement
 };
 
+// A compose sequence: after a Compose action, the codepoints produced by the
+// following keys are matched against `keys`; a full match emits `output`.
+struct ComposeSequence {
+    std::u32string keys;     // ordered produced-codepoints to match
+    std::u32string output;   // result on exact match
+};
+
+// Result of probing the compose table with a partial buffer.
+enum class ComposeMatch { None, Prefix, Exact };
+
 struct LayoutMeta {
+    std::string id          = "";        // stable identifier (usually file stem)
     std::string name        = "unnamed";
     std::string language    = "";
     std::string description = "";
@@ -105,6 +117,13 @@ public:
     void addLigature(const Ligature& lig) { m_ligatures.push_back(lig); sortLigatures(); }
     const std::vector<Ligature>& ligatures() const { return m_ligatures; }
 
+    // --- Compose sequences ---
+    void addCompose(const ComposeSequence& c) { m_compose.push_back(c); }
+    const std::vector<ComposeSequence>& composeSequences() const { return m_compose; }
+
+    // Probe the compose table with a partial buffer. On Exact, `out` is set.
+    ComposeMatch composeLookup(const std::u32string& buffer, std::u32string& out) const;
+
     // Resolve the action for (vk, level), honoring Caps Lock.
     // capsOn/shiftDown are the live modifier states.
     const KeyAction* resolve(unsigned vk, bool shiftDown, bool altGrDown, bool capsOn) const;
@@ -121,6 +140,7 @@ private:
     std::unordered_map<unsigned, KeyDef>   m_keys;
     std::map<std::string, DeadKey>         m_deadKeys;
     std::vector<Ligature>                  m_ligatures;
+    std::vector<ComposeSequence>           m_compose;
 };
 
 } // namespace core

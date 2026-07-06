@@ -47,9 +47,11 @@ public:
     // Exposed for tests.
     const std::u32string& window() const { return m_recent; }
     bool deadPending() const { return !m_pendingDead.empty(); }
+    bool composing() const { return m_composing; }
 
 private:
     EmitOp commit(const std::u32string& produced);
+    EmitOp handleCompose(const std::u32string& produced); // in compose mode
     std::u32string applyLigatures(std::u32string text) const;
 
     static constexpr size_t kWindow = 32;
@@ -57,6 +59,8 @@ private:
     const KeyboardLayout* m_layout = nullptr;
     std::u32string        m_recent;       // on-screen tail we believe we emitted
     std::string           m_pendingDead;  // active dead-key id, empty if none
+    bool                  m_composing = false; // inside a Compose sequence
+    std::u32string        m_composeBuf;   // keys collected since Compose started
 };
 
 } // namespace core

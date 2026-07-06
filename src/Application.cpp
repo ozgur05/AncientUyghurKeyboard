@@ -1,24 +1,22 @@
 #include "Application.h"
 #include "Logger.h"
 #include "resource.h"
-#include "core/LayoutLoader.hpp"
 
 #include <shellapi.h>
-#include <fstream>
-#include <sstream>
+#include <string>
 
 namespace {
-constexpr wchar_t kWndClass[] = L"AncientUyghurKeyboardWnd";
-constexpr UINT    kTrayCallback = WM_APP + 1;
-constexpr UINT    kTrayUID      = 1;
-constexpr UINT    kReloadTimer  = 1;      // hot-reload polling timer
-constexpr UINT    kReloadMs     = 1000;   // poll interval
+constexpr wchar_t kWndClass[]    = L"AncientUyghurKeyboardWnd";
+constexpr UINT    kTrayCallback  = WM_APP + 1;
+constexpr UINT    kTrayUID       = 1;
+constexpr UINT    kReloadTimer   = 1;
+constexpr UINT    kReloadMs      = 1000;
 
 // Context-menu command IDs.
-constexpr UINT    kCmdToggle = 100;
-constexpr UINT    kCmdExit   = 101;
+constexpr UINT    kCmdToggle     = 100;
+constexpr UINT    kCmdExit       = 101;
+constexpr UINT    kCmdLayoutBase = 1000; // layout items occupy [base, base+N)
 
-// Load the bundled app icon if present, otherwise the system default.
 HICON LoadAppIcon(HINSTANCE hInst)
 {
     HICON ico = LoadIconW(hInst, MAKEINTRESOURCEW(IDI_APPICON));
@@ -34,7 +32,15 @@ std::wstring Utf8ToWide(const std::string& s)
     return w;
 }
 
-// Read the last-write time of a file. Returns false if it can't be queried.
+std::string WideToUtf8(const std::wstring& w)
+{
+    if (w.empty()) return {};
+    int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int)w.size(), nullptr, 0, nullptr, nullptr);
+    std::string s(static_cast<size_t>(n), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int)w.size(), s.data(), n, nullptr, nullptr);
+    return s;
+}
+
 bool FileWriteTime(const std::wstring& path, FILETIME& out)
 {
     WIN32_FILE_ATTRIBUTE_DATA fad{};
@@ -49,23 +55,20 @@ int Application::Run(HINSTANCE hInstance)
 {
     m_hInstance = hInstance;
 
-    // --- Config + logging first so everything else can log. ---
     m_config.Load();
     Logger::Instance().Init(m_config.LogPath(), m_config.GetLogLevel());
     Logger::Instance().Info(L"=== AncientUyghurKeyboard starting ===");
 
-    // --- Window + tray first, so we can show load notifications. ---
     if (!InitInstance()) {
         Logger::Instance().Error(L"InitInstance failed");
         return 1;
     }
 
-    // --- Layout (JSON, hot-reloadable). If it fails, the app still runs with
-    //     mapping disabled (keys pass through) until a valid file appears. ---
-    m_layoutPath = m_config.LayoutPath();
-    LoadLayout(/*initial*/ true);
-
+    // Layouts: scan the directory, activate the configured (or first) layout,
+    // and wire the engine. If none load, the app still runs (keys pass through).
+    InitLayouts();
     m_engine.Enable(m_config.Enabled());
+
     if (!m_engine.Install()) {
         MessageBoxW(nullptr, L"Failed to install keyboard hook.",
                     L"AncientUyghurKeyboard", MB_ICONERROR);
@@ -73,7 +76,6 @@ int Application::Run(HINSTANCE hInstance)
         return 2;
     }
 
-    // --- Message loop ---
     MSG msg;
     while (GetMessageW(&msg, nullptr, 0, 0)) {
         TranslateMessage(&msg);
@@ -96,7 +98,6 @@ bool Application::InitInstance()
     if (!RegisterClassExW(&wc))
         return false;
 
-    // Message-only window: no UI, just receives tray/menu messages.
     m_hwnd = CreateWindowExW(0, kWndClass, L"AncientUyghurKeyboard",
                              0, 0, 0, 0, 0, HWND_MESSAGE, nullptr,
                              m_hInstance, this);
@@ -104,66 +105,89 @@ bool Application::InitInstance()
         return false;
 
     AddTrayIcon();
-    SetTimer(m_hwnd, kReloadTimer, kReloadMs, nullptr); // hot-reload polling
+    SetTimer(m_hwnd, kReloadTimer, kReloadMs, nullptr);
     return true;
 }
 
-bool Application::LoadLayout(bool initial)
+bool Application::InitLayouts()
 {
-    // Record the current write time up front so a parse failure doesn't cause
-    // the reloader to retry the same broken file every tick.
-    FileWriteTime(m_layoutPath, m_layoutWriteTime);
+    // Re-point the engine whenever the active layout changes.
+    m_manager.setOnChange([this](const core::KeyboardLayout* l) {
+        m_engine.SetLayout(l);
+    });
 
-    std::ifstream in(m_layoutPath.c_str(), std::ios::binary); // MSVC: wchar_t* overload
-    if (!in.is_open()) {
-        Logger::Instance().Error(L"Cannot open layout file: " + m_layoutPath);
-        if (initial) Notify(L"Layout error", L"Could not open the layout file.", true);
+    const std::string dir       = WideToUtf8(Config::ExeDir() + L"\\layouts");
+    const std::string preferred = WideToUtf8(m_config.LayoutName());
+
+    std::string err;
+    if (!m_manager.initialize(dir, preferred, &err)) {
+        Logger::Instance().Error(L"Layout init failed: " + Utf8ToWide(err));
+        for (const auto& e : m_manager.lastErrors())
+            Logger::Instance().Error(L"layout: " + Utf8ToWide(e));
+        Notify(L"Layout error", L"No usable layout; see log. Typing passes through.", true);
         return false;
     }
-    std::ostringstream ss;
-    ss << in.rdbuf();
 
-    core::LoadResult result = core::LayoutLoader::loadFromString(ss.str());
-
-    for (const auto& w : result.warnings)
+    for (const auto& w : m_manager.lastWarnings())
         Logger::Instance().Warn(L"layout: " + Utf8ToWide(w));
 
-    if (!result.ok()) {
-        for (const auto& e : result.errors)
-            Logger::Instance().Error(L"layout: " + Utf8ToWide(e));
-        Notify(initial ? L"Layout error" : L"Layout reload failed",
-               initial ? L"Layout failed to load; see log."
-                       : L"Kept the previous layout; see log.", true);
-        return false;
-    }
-
-    m_layout = std::move(*result.layout);
-    m_engine.SetLayout(&m_layout);
-    Logger::Instance().Info(L"Layout loaded: " + Utf8ToWide(m_layout.meta().name));
+    UpdateWatchState();
+    UpdateTrayTip();
+    Logger::Instance().Info(L"Active layout: " + Utf8ToWide(m_manager.currentId()));
     return true;
+}
+
+void Application::SwitchLayout(const std::string& id)
+{
+    if (!m_manager.switchTo(id)) {
+        for (const auto& e : m_manager.lastErrors())
+            Logger::Instance().Error(L"layout: " + Utf8ToWide(e));
+        Notify(L"Layout switch failed", Utf8ToWide(id).c_str(), true);
+        return;
+    }
+    for (const auto& w : m_manager.lastWarnings())
+        Logger::Instance().Warn(L"layout: " + Utf8ToWide(w));
+
+    m_config.SetLayoutName(Utf8ToWide(id)); // persist choice on next Save()
+    UpdateWatchState();
+    UpdateTrayTip();
+    Notify(L"Layout switched", Utf8ToWide(id).c_str(), false);
+}
+
+void Application::UpdateWatchState()
+{
+    m_watchPath.clear();
+    m_watchWriteTime = FILETIME{};
+    const std::string& id = m_manager.currentId();
+    for (const auto& info : m_manager.available()) {
+        if (info.id == id) {
+            m_watchPath = Utf8ToWide(info.path);
+            FileWriteTime(m_watchPath, m_watchWriteTime);
+            break;
+        }
+    }
 }
 
 void Application::CheckLayoutReload()
 {
+    if (m_watchPath.empty())
+        return;
     FILETIME ft{};
-    if (!FileWriteTime(m_layoutPath, ft))
-        return; // file temporarily gone (e.g. editor rewriting) — try again later
-    if (CompareFileTime(&ft, &m_layoutWriteTime) == 0)
-        return; // unchanged
+    if (!FileWriteTime(m_watchPath, ft))
+        return; // file briefly gone (editor rewriting) — retry next tick
+    if (CompareFileTime(&ft, &m_watchWriteTime) == 0)
+        return;
 
-    if (LoadLayout(/*initial*/ false))
-        Notify(L"Layout reloaded", Utf8ToWide(m_layout.meta().name).c_str(), false);
-}
-
-void Application::Notify(const wchar_t* title, const wchar_t* text, bool error)
-{
-    if (!m_nid.cbSize) return;
-    NOTIFYICONDATAW nid = m_nid;
-    nid.uFlags      = NIF_INFO;
-    nid.dwInfoFlags = error ? NIIF_ERROR : NIIF_INFO;
-    wcscpy_s(nid.szInfoTitle, title);
-    wcscpy_s(nid.szInfo, text);
-    Shell_NotifyIconW(NIM_MODIFY, &nid);
+    m_watchWriteTime = ft; // record now so a bad file doesn't retry every tick
+    if (m_manager.reloadCurrent()) {
+        for (const auto& w : m_manager.lastWarnings())
+            Logger::Instance().Warn(L"layout: " + Utf8ToWide(w));
+        Notify(L"Layout reloaded", Utf8ToWide(m_manager.currentId()).c_str(), false);
+    } else {
+        for (const auto& e : m_manager.lastErrors())
+            Logger::Instance().Error(L"layout: " + Utf8ToWide(e));
+        Notify(L"Layout reload failed", L"Kept the previous layout; see log.", true);
+    }
 }
 
 void Application::Shutdown()
@@ -203,7 +227,9 @@ void Application::RemoveTrayIcon()
 void Application::UpdateTrayTip()
 {
     const wchar_t* state = m_engine.Enabled() ? L"ON" : L"OFF";
-    swprintf_s(m_nid.szTip, L"Ancient Uyghur Keyboard [%s]", state);
+    std::wstring layout = Utf8ToWide(m_manager.currentId());
+    if (layout.empty()) layout = L"(none)";
+    swprintf_s(m_nid.szTip, L"Ancient Uyghur Keyboard [%s] — %s", state, layout.c_str());
     if (m_nid.cbSize)
         Shell_NotifyIconW(NIM_MODIFY, &m_nid);
 }
@@ -221,15 +247,45 @@ void Application::ShowContextMenu()
     GetCursorPos(&pt);
 
     HMENU menu = CreatePopupMenu();
-    UINT check = m_engine.Enabled() ? MF_CHECKED : MF_UNCHECKED;
-    AppendMenuW(menu, MF_STRING | check, kCmdToggle, L"Enabled");
+    AppendMenuW(menu, MF_STRING | (m_engine.Enabled() ? MF_CHECKED : MF_UNCHECKED),
+                kCmdToggle, L"Enabled");
+
+    // Layout submenu: one checkable item per available layout.
+    HMENU sub = CreatePopupMenu();
+    m_menuLayoutIds.clear();
+    const std::string& curId = m_manager.currentId();
+    UINT idx = 0;
+    for (const auto& info : m_manager.available()) {
+        UINT flags = MF_STRING;
+        if (info.id == curId) flags |= MF_CHECKED;
+        if (!info.valid)      flags |= MF_GRAYED;
+        std::wstring label = Utf8ToWide(info.name);
+        if (!info.valid) label += L" (invalid)";
+        AppendMenuW(sub, flags, kCmdLayoutBase + idx, label.c_str());
+        m_menuLayoutIds.push_back(info.id);
+        ++idx;
+    }
+    if (idx == 0)
+        AppendMenuW(sub, MF_STRING | MF_GRAYED, 0, L"(no layouts found)");
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(sub), L"Layout");
+
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, kCmdExit, L"Exit");
 
-    // Required so the menu dismisses correctly for a tray window.
     SetForegroundWindow(m_hwnd);
     TrackPopupMenu(menu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, m_hwnd, nullptr);
-    DestroyMenu(menu);
+    DestroyMenu(menu); // also destroys the submenu
+}
+
+void Application::Notify(const wchar_t* title, const wchar_t* text, bool error)
+{
+    if (!m_nid.cbSize) return;
+    NOTIFYICONDATAW nid = m_nid;
+    nid.uFlags      = NIF_INFO;
+    nid.dwInfoFlags = error ? NIIF_ERROR : NIIF_INFO;
+    wcscpy_s(nid.szInfoTitle, title);
+    wcscpy_s(nid.szInfo, text);
+    Shell_NotifyIconW(NIM_MODIFY, &nid);
 }
 
 LRESULT CALLBACK Application::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
@@ -257,12 +313,17 @@ LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 ToggleEnabled();
             return 0;
 
-        case WM_COMMAND:
-            switch (LOWORD(wp)) {
-                case kCmdToggle: ToggleEnabled();          return 0;
-                case kCmdExit:   PostMessageW(hwnd, WM_CLOSE, 0, 0); return 0;
+        case WM_COMMAND: {
+            UINT id = LOWORD(wp);
+            if (id == kCmdToggle) { ToggleEnabled(); return 0; }
+            if (id == kCmdExit)   { PostMessageW(hwnd, WM_CLOSE, 0, 0); return 0; }
+            if (id >= kCmdLayoutBase &&
+                id < kCmdLayoutBase + m_menuLayoutIds.size()) {
+                SwitchLayout(m_menuLayoutIds[id - kCmdLayoutBase]);
+                return 0;
             }
             break;
+        }
 
         case WM_TIMER:
             if (wp == kReloadTimer)
