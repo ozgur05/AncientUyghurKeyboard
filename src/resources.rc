@@ -1,6 +1,7 @@
 // resources.rc — application icon, version info, and a DPI-aware manifest.
 #include <windows.h>
 #include "resource.h"
+#include "AppVersion.hpp"   // AUK_VER_* / AUK_APP_VERSION_STR (single source)
 
 /////////////////////////////////////////////////////////////////////////////
 // Icon
@@ -12,8 +13,8 @@
 /////////////////////////////////////////////////////////////////////////////
 // Version information
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    0,1,0,0
- PRODUCTVERSION 0,1,0,0
+ FILEVERSION    AUK_VER_MAJOR,AUK_VER_MINOR,AUK_VER_PATCH,0
+ PRODUCTVERSION AUK_VER_MAJOR,AUK_VER_MINOR,AUK_VER_PATCH,0
  FILEFLAGSMASK  0x3fL
  FILEFLAGS      0x0L
  FILEOS         VOS_NT_WINDOWS32
@@ -26,11 +27,11 @@ BEGIN
         BEGIN
             VALUE "CompanyName",      "Open Source"
             VALUE "FileDescription",  "Ancient Uyghur Keyboard"
-            VALUE "FileVersion",      "0.1.0.0"
+            VALUE "FileVersion",      AUK_APP_VERSION_STR
             VALUE "InternalName",     "AncientUyghurKeyboard"
             VALUE "OriginalFilename", "AncientUyghurKeyboard.exe"
             VALUE "ProductName",      "Ancient Uyghur Keyboard"
-            VALUE "ProductVersion",   "0.1.0.0"
+            VALUE "ProductVersion",   AUK_APP_VERSION_STR
         END
     END
     BLOCK "VarFileInfo"

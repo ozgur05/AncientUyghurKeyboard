@@ -6,6 +6,7 @@
 #include <vector>
 #include "Config.h"
 #include "KeyboardEngine.h"
+#include "InstallerHelper.h"
 #include "core/KeyboardLayoutManager.hpp"
 
 class Application {
@@ -22,6 +23,7 @@ public:
 private:
     bool InitInstance();
     void Shutdown();
+    void ReportInstallStatus();   // log + toast first-install / upgrade
 
     // Layout management.
     bool InitLayouts();                       // scan + activate + wire engine
@@ -42,13 +44,15 @@ private:
     static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
     LRESULT HandleMessage(HWND, UINT, WPARAM, LPARAM);
 
-    HINSTANCE       m_hInstance = nullptr;
-    HWND            m_hwnd      = nullptr;
-    NOTIFYICONDATAW m_nid       = {};
+    HINSTANCE       m_hInstance     = nullptr;
+    HWND            m_hwnd          = nullptr;
+    HANDLE          m_instanceMutex = nullptr; // single-instance / installer AppMutex
+    NOTIFYICONDATAW m_nid           = {};
 
     Config                        m_config;
     core::KeyboardLayoutManager   m_manager;   // owns layouts + active pointer
     KeyboardEngine                m_engine;
+    InstallerHelper::Result       m_install;   // resolved data root + launch kind
 
     // Menu id -> layout id, rebuilt each time the context menu is shown.
     std::vector<std::string> m_menuLayoutIds;

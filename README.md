@@ -75,7 +75,9 @@ Switch layouts at runtime from the tray (right-click ▶ **Layout**). Add a
 
 The app links `user32 gdi32 shell32 advapi32 ole32 uuid`. The C++20 sources
 build cleanly under both **MSVC** and **GCC 14** (`-std=c++20 -Wall -Wextra`,
-warning-free); the 56-test suite passes on both.
+warning-free); the 74-test suite passes on both. The single source of truth for
+the version is the top-level **`VERSION`** file (read by CMake, `AppVersion.hpp`,
+the installer, and CI).
 
 ### Commands
 ```powershell
@@ -84,16 +86,32 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure   # run unit tests
 ```
 
-The executable is produced at:
-```
-build\Release\AncientUyghurKeyboard.exe
-```
-with a `layouts\` folder copied alongside it.
+The executable is produced at `build\Release\AncientUyghurKeyboard.exe` with a
+`layouts\` folder copied alongside it.
 
 The portable core (`src/core/`) and its tests build on any platform, so you can
 run the test suite without Windows:
 ```bash
 cmake -S . -B build && cmake --build build && ctest --test-dir build
+```
+
+### Building the installer & portable ZIP
+
+Stage the payload, then build the two packages (matches what CI does):
+```powershell
+# 1. Stage payload
+mkdir dist
+copy build\Release\AncientUyghurKeyboard.exe dist\
+xcopy /E /I layouts dist\layouts
+copy LICENSE dist\LICENSE ; copy README.md dist\README.md
+
+# 2. Installer (needs Inno Setup 6: `choco install innosetup`)
+iscc "/DAppVersion=$(Get-Content VERSION)" "/DSourceDir=..\dist" installer\AncientUyghurKeyboard.iss
+#    -> installer\Output\AncientUyghurKeyboard_Setup.exe
+
+# 3. Portable ZIP (payload + portable.ini)
+copy installer\portable.ini dist\portable.ini
+Compress-Archive dist\* AncientUyghurKeyboard-portable.zip
 ```
 
 ---
@@ -107,6 +125,64 @@ cmake -S . -B build && cmake --build build && ctest --test-dir build
 
 Settings persist to `%APPDATA%\AncientUyghurKeyboard\config.ini`.
 Logs are written to `%APPDATA%\AncientUyghurKeyboard\app.log`.
+
+---
+
+## Installation & deployment
+
+Two ways to run it — both 100% offline, no Python/.NET/Java or runtime.
+
+### Installer (recommended)
+
+Run **`AncientUyghurKeyboard_Setup.exe`**. It installs into Program Files,
+creates a Start-Menu shortcut (Desktop and run-at-sign-in shortcuts are
+optional), and registers an uninstaller. It supports **per-user** (no admin) or
+**per-machine** (elevated) installation, detects a previous version, and
+upgrades in place.
+
+Your configuration and keyboard layouts live in
+`%APPDATA%\AncientUyghurKeyboard` and are **never** modified by install,
+upgrade, or uninstall — settings and custom layouts always survive.
+
+### Portable version
+
+Download the **portable ZIP** and extract it anywhere (USB stick, network
+share, a folder you control). Because it contains a `portable.ini` marker, the
+app keeps `config.ini`, `app.log`, the version marker, and `layouts\` **next to
+the executable** instead of `%APPDATA%`. Delete `portable.ini` to switch it back
+to per-user mode.
+
+### Upgrading
+
+Run a newer installer (or replace the portable folder). On first launch after an
+upgrade the app detects the version change, migrates `config.ini` to the current
+schema (preserving every value, including keys it doesn't recognise), seeds any
+new bundled layouts **without** overwriting your edits, recreates missing
+folders, and shows a tray notification. Downgrades are detected and left alone.
+
+### Uninstalling
+
+Use **Settings ▶ Apps** or the Start-Menu *Uninstall* entry. To also remove your
+settings, delete `%APPDATA%\AncientUyghurKeyboard` afterwards (for the portable
+version, just delete the folder).
+
+### Silent install / uninstall
+
+The installer is standard Inno Setup, so unattended deployment works out of the
+box:
+
+```powershell
+# Silent per-machine install (elevated), with a Desktop icon:
+AncientUyghurKeyboard_Setup.exe /VERYSILENT /ALLUSERS /TASKS="desktopicon" /NORESTART
+
+# Silent per-user install (no admin):
+AncientUyghurKeyboard_Setup.exe /VERYSILENT /CURRENTUSER
+
+# Silent uninstall:
+"%ProgramFiles%\AncientUyghurKeyboard\unins000.exe" /VERYSILENT
+```
+
+`/SILENT` shows a progress bar; `/VERYSILENT` shows nothing. Exit code 0 = success.
 
 ---
 
@@ -168,9 +244,13 @@ the tray persists the choice. Two layouts ship by default:
 
 ## Continuous integration
 
-`.github/workflows/build.yml` builds a **Release** EXE on every push using
-`windows-latest` + MSVC and uploads it as a workflow artifact. Pushing a
-version tag (e.g. `v0.1.0`) also attaches the EXE to a GitHub Release.
+`.github/workflows/build.yml` runs on `windows-latest` + MSVC and, on every
+push, it: configures + builds **Release**, runs the **unit tests** (`ctest`),
+stages the payload, builds the **portable ZIP**, builds the **installer** with
+Inno Setup, and uploads three artifacts — the bare `.exe`, the
+`AncientUyghurKeyboard_Setup.exe`, and the portable `.zip`. Pushing a version
+tag (e.g. `v0.4.0`) additionally publishes a **GitHub Release** with the
+installer, portable ZIP, and executable attached.
 
 ---
 

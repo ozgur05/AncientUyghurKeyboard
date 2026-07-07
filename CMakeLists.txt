@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
-project(AncientUyghurKeyboard VERSION 0.3.0 LANGUAGES CXX)
+
+# Read the canonical version from the top-level VERSION file (shared with the
+# installer and CI, so there is one source of truth).
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" AUK_VERSION LIMIT_COUNT 1)
+string(STRIP "${AUK_VERSION}" AUK_VERSION)
+
+project(AncientUyghurKeyboard VERSION ${AUK_VERSION} LANGUAGES CXX)
 
 # ---------------------------------------------------------------------------
 # Language
@@ -21,6 +27,9 @@ add_library(auk_core STATIC
     src/core/KeyboardLayoutManager.cpp
     src/core/Normalizer.cpp
     src/core/Composer.cpp
+    src/core/Version.cpp
+    src/core/InstallationDetector.cpp
+    src/core/Migration.cpp
 )
 target_include_directories(auk_core PUBLIC src)
 target_compile_features(auk_core PUBLIC cxx_std_20)
@@ -44,6 +53,9 @@ if(WIN32)
         src/KeyboardEngine.cpp
         src/Config.cpp
         src/Logger.cpp
+        src/VersionManager.cpp
+        src/AutoMigration.cpp
+        src/InstallerHelper.cpp
         src/resources.rc
     )
     target_link_libraries(AncientUyghurKeyboard PRIVATE
@@ -76,6 +88,9 @@ if(AUK_BUILD_TESTS)
         tests/test_registry.cpp
         tests/test_manager.cpp
         tests/test_composer.cpp
+        tests/test_version.cpp
+        tests/test_installdetector.cpp
+        tests/test_migration.cpp
     )
     target_link_libraries(auk_tests PRIVATE auk_core)
     if(MSVC)

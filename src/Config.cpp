@@ -56,9 +56,11 @@ std::wstring Config::ExeDir()
     return (slash == std::wstring::npos) ? L"." : path.substr(0, slash);
 }
 
-std::wstring Config::ConfigPath() const { return AppDataDir() + L"\\config.ini"; }
-std::wstring Config::LogPath()    const { return AppDataDir() + L"\\app.log"; }
-std::wstring Config::LayoutPath() const { return ExeDir() + L"\\layouts\\" + m_layoutName + L".json"; }
+std::wstring Config::DataRoot() const { return m_dataRoot.empty() ? AppDataDir() : m_dataRoot; }
+std::wstring Config::ConfigPath() const { return DataRoot() + L"\\config.ini"; }
+std::wstring Config::LogPath()    const { return DataRoot() + L"\\app.log"; }
+std::wstring Config::LayoutsDir() const { return DataRoot() + L"\\layouts"; }
+std::wstring Config::LayoutPath() const { return LayoutsDir() + L"\\" + m_layoutName + L".json"; }
 
 void Config::Load()
 {

@@ -3,6 +3,11 @@
 /dist/
 /out/
 
+# Installer / packaging output
+/installer/Output/
+*.zip
+AncientUyghurKeyboard-*-portable/
+
 # CMake
 CMakeCache.txt
 CMakeFiles/

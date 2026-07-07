@@ -55,9 +55,25 @@ int Application::Run(HINSTANCE hInstance)
 {
     m_hInstance = hInstance;
 
+    // Single-instance guard. The name is shared with the installer's AppMutex so
+    // Setup can detect a running copy and offer to close it during upgrades.
+    m_instanceMutex = CreateMutexW(nullptr, FALSE, L"AncientUyghurKeyboard_SingleInstance");
+    if (m_instanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
+        MessageBoxW(nullptr, L"Ancient Uyghur Keyboard is already running.",
+                    L"AncientUyghurKeyboard", MB_ICONINFORMATION | MB_OK);
+        return 0;
+    }
+
+    // Resolve data root, classify launch (first-install / upgrade / …), run
+    // auto-migration, and stamp the version marker — before anything reads
+    // config or layouts.
+    m_install = InstallerHelper::Startup();
+    m_config.SetDataRoot(m_install.dataRoot);
+
     m_config.Load();
     Logger::Instance().Init(m_config.LogPath(), m_config.GetLogLevel());
     Logger::Instance().Info(L"=== AncientUyghurKeyboard starting ===");
+    ReportInstallStatus();
 
     if (!InitInstance()) {
         Logger::Instance().Error(L"InitInstance failed");
@@ -116,7 +132,7 @@ bool Application::InitLayouts()
         m_engine.SetLayout(l);
     });
 
-    const std::string dir       = WideToUtf8(Config::ExeDir() + L"\\layouts");
+    const std::string dir       = WideToUtf8(m_config.LayoutsDir());
     const std::string preferred = WideToUtf8(m_config.LayoutName());
 
     std::string err;
@@ -135,6 +151,40 @@ bool Application::InitLayouts()
     UpdateTrayTip();
     Logger::Instance().Info(L"Active layout: " + Utf8ToWide(m_manager.currentId()));
     return true;
+}
+
+void Application::ReportInstallStatus()
+{
+    using core::LaunchKind;
+    const auto& st = m_install.status;
+    const std::wstring cur = Utf8ToWide(st.current.toString());
+    const std::wstring root = m_install.dataRoot + (m_install.portable ? L" (portable)" : L"");
+    Logger::Instance().Info(L"Data root: " + root);
+
+    switch (st.kind) {
+        case LaunchKind::FirstInstall:
+            Logger::Instance().Info(L"First launch, version " + cur);
+            Notify(L"Ancient Uyghur Keyboard",
+                   L"Installed and ready. Right-click the tray icon for options.", false);
+            break;
+        case LaunchKind::Upgrade: {
+            std::wstring prev = st.previous ? Utf8ToWide(st.previous->toString()) : L"legacy";
+            Logger::Instance().Info(L"Upgraded from " + prev + L" to " + cur);
+            Notify(L"Ancient Uyghur Keyboard",
+                   (L"Updated to " + cur + L". Your settings were kept.").c_str(), false);
+            break;
+        }
+        case LaunchKind::Downgrade:
+            Logger::Instance().Warn(L"Running older version " + cur +
+                L" than previously installed; settings left as-is.");
+            break;
+        case LaunchKind::Reinstall:
+            Logger::Instance().Info(L"Reinstall/repair for version " + cur);
+            break;
+        case LaunchKind::Normal:
+            Logger::Instance().Info(L"Version " + cur);
+            break;
+    }
 }
 
 void Application::SwitchLayout(const std::string& id)
@@ -192,6 +242,10 @@ void Application::CheckLayoutReload()
 
 void Application::Shutdown()
 {
+    if (m_instanceMutex) {
+        CloseHandle(m_instanceMutex);
+        m_instanceMutex = nullptr;
+    }
     if (m_hwnd)
         KillTimer(m_hwnd, kReloadTimer);
     m_engine.Uninstall();
