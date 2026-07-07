@@ -1,5 +1,6 @@
 #include "Logger.h"
 #include <windows.h>
+#include <filesystem>
 
 namespace {
 std::string WideToUtf8(const std::wstring& w)
@@ -26,8 +27,9 @@ void Logger::Init(const std::wstring& path, LogLevel level)
     m_level = level;
     if (m_file.is_open())
         m_file.close();
-    // std::ios::app keeps history across runs.
-    m_file.open(path, std::ios::app | std::ios::binary);
+    // std::ios::app keeps history across runs. Wrap in filesystem::path so the
+    // wide (UTF-16) path works on libstdc++/MinGW as well as MSVC.
+    m_file.open(std::filesystem::path(path), std::ios::app | std::ios::binary);
 }
 
 const wchar_t* Logger::LevelName(LogLevel level)

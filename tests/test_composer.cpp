@@ -215,3 +215,19 @@ TEST(Composer_ComposeEscapeCancels)
     CHECK(esc.suppress);
     CHECK_FALSE(c.composing());
 }
+
+TEST(Composer_AltGrLevelEmits)
+{
+    const char* j = R"({
+        "behavior": { "normalize": true },
+        "keys": { "A": { "base": "U+10F70", "altgr": "U+10F72" } }
+    })";
+    auto r = LayoutParser::parseString(j);
+    CHECK(r.ok());
+    Composer c; c.setLayout(&*r.layout);
+
+    KeyInput k; k.vk = vk::KeyA; k.altgr = true;   // AltGr held
+    EmitOp op = c.process(k);
+    CHECK(op.suppress);
+    CHECK(op.insert == std::u32string{ 0x10F72 });
+}

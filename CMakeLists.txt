@@ -46,7 +46,8 @@ if(WIN32)
         src/Logger.cpp
         src/resources.rc
     )
-    target_link_libraries(AncientUyghurKeyboard PRIVATE auk_core user32 gdi32 shell32 advapi32)
+    target_link_libraries(AncientUyghurKeyboard PRIVATE
+        auk_core user32 gdi32 shell32 advapi32 ole32 uuid)
 
     if(MSVC)
         target_compile_options(AncientUyghurKeyboard PRIVATE /W4 /permissive- /utf-8)

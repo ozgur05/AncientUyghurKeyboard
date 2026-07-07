@@ -4,6 +4,7 @@
 #include <shlobj.h>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 
 namespace {
 std::string WideToUtf8(const std::wstring& w)
@@ -61,7 +62,9 @@ std::wstring Config::LayoutPath() const { return ExeDir() + L"\\layouts\\" + m_l
 
 void Config::Load()
 {
-    std::ifstream in(ConfigPath(), std::ios::binary);
+    // std::filesystem::path accepts a wide (UTF-16) path on both MSVC and
+    // libstdc++/MinGW; a bare std::wstring only works on MSVC's extension.
+    std::ifstream in(std::filesystem::path(ConfigPath()), std::ios::binary);
     if (!in.is_open()) {
         Save(); // write defaults
         return;
@@ -92,7 +95,7 @@ void Config::Load()
 
 void Config::Save() const
 {
-    std::ofstream out(ConfigPath(), std::ios::binary | std::ios::trunc);
+    std::ofstream out(std::filesystem::path(ConfigPath()), std::ios::binary | std::ios::trunc);
     if (!out.is_open()) return;
 
     const char* lvl = "info";

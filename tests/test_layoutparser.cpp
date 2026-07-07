@@ -110,3 +110,57 @@ TEST(Parser_Behavior_CapsAndNormalize)
         CHECK_FALSE(r.layout->normalize());
     }
 }
+
+TEST(Parser_MetadataFields)
+{
+    // Every metadata field the layout format promises must round-trip.
+    const char* json = R"({
+        "meta": {
+            "id": "old_uyghur_x", "name": "Name", "language": "oui",
+            "description": "Desc", "author": "Auth", "version": 7
+        },
+        "keys": { "A": "U+10F70" }
+    })";
+    auto r = LayoutParser::parseString(json);
+    CHECK(r.ok());
+    if (r.layout) {
+        const auto& m = r.layout->meta();
+        CHECK_EQ(m.id, std::string("old_uyghur_x"));
+        CHECK_EQ(m.name, std::string("Name"));
+        CHECK_EQ(m.language, std::string("oui"));
+        CHECK_EQ(m.description, std::string("Desc"));
+        CHECK_EQ(m.author, std::string("Auth"));
+        CHECK_EQ(m.version, 7);
+    }
+}
+
+TEST(Parser_UnknownKeyName_WarnsButLoads)
+{
+    // Invalid key validation: an unrecognized key name is skipped with a
+    // warning; the rest of the layout still loads.
+    auto r = LayoutParser::parseString(
+        R"({ "keys": { "A": "U+10F70", "NotAKey": "U+10F71" } })");
+    CHECK(r.ok());
+    CHECK(!r.warnings.empty());
+    if (r.layout) CHECK(r.layout->key(vk::KeyA) != nullptr);
+}
+
+TEST(Parser_AltGrAndShiftAltGrLevels)
+{
+    const char* json = R"({
+        "keys": { "A": {
+            "base": "U+10F70", "shift": "U+10F71",
+            "altgr": "U+10F72", "shift_altgr": "U+10F73"
+        } }
+    })";
+    auto r = LayoutParser::parseString(json);
+    CHECK(r.ok());
+    if (r.layout) {
+        const KeyDef* k = r.layout->key(vk::KeyA);
+        CHECK(k != nullptr);
+        if (k) {
+            CHECK(k->levels[(int)Level::AltGr].output      == std::u32string{ 0x10F72 });
+            CHECK(k->levels[(int)Level::ShiftAltGr].output == std::u32string{ 0x10F73 });
+        }
+    }
+}

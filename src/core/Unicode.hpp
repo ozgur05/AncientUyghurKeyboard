@@ -82,7 +82,15 @@ inline std::u32string utf8ToUtf32(const std::string& s)
             if ((cc >> 6) != 0x2) { ok = false; break; }
             cp = (cp << 6) | (cc & 0x3F);
         }
-        if (!ok || !isValidScalar(cp)) { out += kReplacement; ++i; continue; }
+        if (!ok) {
+            // Malformed continuation byte: emit one U+FFFD and resync at i+1.
+            out += kReplacement; ++i; continue;
+        }
+        if (!isValidScalar(cp)) {
+            // Structurally complete but illegal (surrogate/overlong/out-of-range):
+            // consume the whole attempted sequence as a single U+FFFD.
+            out += kReplacement; i += static_cast<size_t>(extra) + 1; continue;
+        }
         out += cp;
         i += static_cast<size_t>(extra) + 1;
     }

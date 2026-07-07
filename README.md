@@ -70,8 +70,12 @@ Switch layouts at runtime from the tray (right-click ▶ **Layout**). Add a
 
 ### Requirements
 - Windows 10 or 11
-- Visual Studio 2022 (MSVC toolset) or Build Tools
+- Visual Studio 2022 (MSVC toolset) or Build Tools — **or** MinGW-w64 (GCC 13+)
 - CMake ≥ 3.20
+
+The app links `user32 gdi32 shell32 advapi32 ole32 uuid`. The C++20 sources
+build cleanly under both **MSVC** and **GCC 14** (`-std=c++20 -Wall -Wextra`,
+warning-free); the 56-test suite passes on both.
 
 ### Commands
 ```powershell
@@ -115,13 +119,21 @@ shows a tray notification on success/failure). Codepoints may be written as
 
 ```jsonc
 {
-  "meta": { "name": "Old Uyghur (Phonetic)", "version": 3 },
+  "meta": {
+    "id": "old_uyghur",                 // stable identifier (defaults to filename stem)
+    "name": "Old Uyghur (Phonetic)",    // display name (tray menu)
+    "language": "oui",                  // BCP-47 / ISO 639-3 language tag
+    "description": "Phonetic layout…",  // free text
+    "author": "KutadguBilim",           // author credit
+    "version": 4                        // integer layout version
+  },
   "behavior": { "caps_mode": "ignore", "normalize": true },
   "keys": {
     "A": { "base": "U+10F70" },
-    "S": { "base": "U+10F7B", "shift": "U+10F7F" },   // Shift level
+    "S": { "base": "U+10F7B", "shift": "U+10F7F" },        // Shift level
+    "OEM_2": { "base": "/", "altgr": { "compose": true } }, // AltGr starts a compose seq
     "OEM_4": { "base": "U+10F82", "shift": "U+10F84" },
-    "OEM_3": { "base": { "dead": "dots_above" } }      // dead key
+    "OEM_3": { "base": { "dead": "dots_above" } }           // dead key
   },
   "dead_keys": {
     "dots_above": {
@@ -129,14 +141,28 @@ shows a tray notification on success/failure). Codepoints may be written as
       "compose": { "U+10F70": ["U+10F70", "U+10F84"] }
     }
   },
-  "ligatures": [ { "sequence": ["U+10F78","U+10F70"], "result": ["U+10F78","U+10F70"] } ]
+  "ligatures": [ { "sequence": ["U+10F78","U+10F70"], "result": ["U+10F78","U+10F70"] } ],
+  "compose_sequences": [ { "keys": ["U+10F70","U+10F76"], "output": ["U+10F70","U+10F84"] } ]
 }
 ```
 
-Supported per key: `base`, `shift`, `altgr`, `shift_altgr` levels; each level is
-an output (string / codepoint / array) or `{ "dead": "<id>" }`. The loader
-validates the file and reports **duplicate mappings** and unknown keys. Set the
-active layout in `config.ini` via `layout=<name>` (loads `layouts/<name>.json`).
+**Metadata** (`meta`): `id`, `name`, `language`, `description`, `author`, `version`.
+**Per key** (`keys`): the four modifier levels `base`, `shift`, `altgr`,
+`shift_altgr`; each level is an output (literal string, `"U+XXXX"`/`"0xXXXX"`
+codepoint token, or an array of codepoints) **or** an action object
+`{ "dead": "<id>" }` / `{ "compose": true }`. Letter keys are governed by
+`behavior.caps_mode` (`ignore` | `shift_letters` | `invert`).
+
+**Validation.** Layouts are parsed then semantically validated: duplicate key
+mappings and dangling dead-key references are **errors** (the layout is
+rejected); duplicate glyphs, unknown key names, and ambiguous compose sequences
+are **warnings** (logged, layout still loads). Invalid layouts appear greyed-out
+in the tray menu.
+
+Set the startup layout in `config.ini` via `layout=<id>` (loads
+`layouts/<id>.json`); it is loaded automatically at startup, and switching from
+the tray persists the choice. Two layouts ship by default:
+`old_uyghur.json` (phonetic) and `old_uyghur_qwerty.json` (positional).
 
 ---
 

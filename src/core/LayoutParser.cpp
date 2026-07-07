@@ -46,8 +46,21 @@ std::optional<char32_t> parseCodepointToken(const json::Value& v, std::string& e
 
 std::optional<std::u32string> parseOutput(const json::Value& node, std::string& err)
 {
-    if (node.isString())
-        return unicode::utf8ToUtf32(node.asString());
+    if (node.isString()) {
+        // A bare string is literal text ("0", "-", "x", "abc") EXCEPT when it is
+        // a codepoint token ("U+10F70" / "0x10F70"), which resolves to that one
+        // codepoint. This lets layouts mix literal ASCII and explicit codepoints.
+        const std::string& s = node.asString();
+        bool token = (s.size() > 2) &&
+                     (((s[0] == 'U' || s[0] == 'u') && s[1] == '+') ||
+                      (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')));
+        if (token) {
+            auto cp = parseCodepointToken(node, err);
+            if (!cp) return std::nullopt;
+            return std::u32string(1, *cp);
+        }
+        return unicode::utf8ToUtf32(s);
+    }
     if (node.isArray()) {
         std::u32string out;
         for (const auto& e : node.asArray()) {
