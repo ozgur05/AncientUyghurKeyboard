@@ -71,7 +71,10 @@ EmitOp Composer::commit(const std::u32string& produced)
     op.suppress = true;
 
     const std::u32string base = m_recent;
-    std::u32string processed = base + produced;
+    std::u32string processed;
+    processed.reserve(base.size() + produced.size());
+    processed.assign(base);
+    processed.append(produced);
 
     if (m_layout && m_layout->normalize())
         processed = normalizer::toNFC(processed);

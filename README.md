@@ -66,6 +66,47 @@ Switch layouts at runtime from the tray (right-click ▶ **Layout**). Add a
 
 ---
 
+## Performance, reliability & security
+
+**Performance.** The keystroke path is allocation-light and constant-time:
+
+- **Compose matching is O(1)** — sequences are indexed into hash maps
+  (exact + proper-prefix sets) at load, so lookup cost is independent of table
+  size (validated against a 5,000-entry table in the benchmark).
+- UTF-16 generation and the composer's reconciliation buffer **`reserve()`**
+  up front to avoid reallocation churn.
+- VK→codepoint lookup is an `unordered_map` (O(1)); layouts are parsed once and
+  cached per active layout; the registry lists metadata without keeping every
+  file resident.
+- A **benchmark** target (`auk_bench`) times UTF-16 conversion, compose lookup,
+  and layout parsing — build with `-DAUK_BUILD_BENCH=ON` (default) and run it.
+
+**Reliability.** Corrupt input never brings the app down:
+
+- A malformed layout file is reported and **skipped**; the manager falls back to
+  the first valid layout, or to pass-through typing if none load.
+- A hot-reload that fails to parse **keeps the previous layout** and notifies.
+- `config.ini` parsing tolerates junk lines; a missing config yields defaults.
+- Win32 handles use **RAII** wrappers (`ScopedHandle`, `ScopedMenu`) so the
+  single-instance mutex and tray menus can't leak; the registry scan is fully
+  exception-safe.
+
+**Security / input validation.** Everything crossing a trust boundary is checked:
+
+- All JSON is validated; codepoints must be **valid Unicode scalar values** —
+  out-of-range values and **lone surrogates** are rejected by both the parser
+  and the validator, so malformed UTF-16 can never be injected.
+- Layout ids are constrained to plain file stems (no path separators), so a
+  layout name can't escape the layouts directory.
+- Integer parsing is range-checked; text handling is `std::string`/`vector`
+  based (no manual buffer arithmetic).
+
+**Diagnostics.** Startup time is logged on every launch. Set the environment
+variable **`AUK_DIAG=1`** to log per-keystroke hook timing (trace level) for
+latency investigation.
+
+---
+
 ## Build
 
 ### Requirements

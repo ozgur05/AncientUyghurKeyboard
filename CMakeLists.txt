@@ -91,10 +91,23 @@ if(AUK_BUILD_TESTS)
         tests/test_version.cpp
         tests/test_installdetector.cpp
         tests/test_migration.cpp
+        tests/test_hardening.cpp
     )
     target_link_libraries(auk_tests PRIVATE auk_core)
     if(MSVC)
         target_compile_options(auk_tests PRIVATE /utf-8)
     endif()
     add_test(NAME unit COMMAND auk_tests)
+endif()
+
+# ---------------------------------------------------------------------------
+# Benchmark utility (portable; built on demand, not part of the test suite)
+# ---------------------------------------------------------------------------
+option(AUK_BUILD_BENCH "Build the performance benchmark utility" ON)
+if(AUK_BUILD_BENCH)
+    add_executable(auk_bench bench/benchmark.cpp)
+    target_link_libraries(auk_bench PRIVATE auk_core)
+    if(MSVC)
+        target_compile_options(auk_bench PRIVATE /O2 /utf-8)
+    endif()
 endif()

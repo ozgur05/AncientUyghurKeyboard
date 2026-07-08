@@ -23,6 +23,15 @@ std::string glyphStr(const std::u32string& s)
     }
     return o.str();
 }
+
+// True if every codepoint in `s` is a valid Unicode scalar (in range, not a
+// surrogate). Anything else would produce broken UTF-16 when injected.
+bool allScalar(const std::u32string& s)
+{
+    for (char32_t cp : s)
+        if (!unicode::isValidScalar(cp)) return false;
+    return true;
+}
 } // namespace
 
 ValidationReport LayoutValidator::validate(const KeyboardLayout& layout)
@@ -43,6 +52,9 @@ ValidationReport LayoutValidator::validate(const KeyboardLayout& layout)
                         " references undefined dead key '" + a.deadKey + "'");
             } else if (a.kind == ActionKind::Emit && !a.output.empty()) {
                 std::string where = "VK " + vkHex(vk) + " level " + std::to_string(lvl);
+                if (!allScalar(a.output))
+                    rep.errors.push_back("key " + where +
+                        " emits a non-scalar codepoint (surrogate/out-of-range)");
                 auto it = firstEmitter.find(a.output);
                 if (it != firstEmitter.end())
                     rep.warnings.push_back("glyph " + glyphStr(a.output) +
@@ -53,10 +65,16 @@ ValidationReport LayoutValidator::validate(const KeyboardLayout& layout)
         }
     }
 
-    // 2. Dead keys should have at least one composition.
-    for (const auto& [id, dk] : layout.deadKeys())
+    // 2. Dead keys: at least one composition, and all outputs must be scalar.
+    for (const auto& [id, dk] : layout.deadKeys()) {
         if (dk.compositions.empty())
             rep.warnings.push_back("dead key '" + id + "' has no compositions");
+        if (!allScalar(dk.standalone))
+            rep.errors.push_back("dead key '" + id + "' standalone is non-scalar");
+        for (const auto& [next, out] : dk.compositions)
+            if (!allScalar(out))
+                rep.errors.push_back("dead key '" + id + "' has a non-scalar output");
+    }
 
     // 3. Compose sequences: duplicates and prefix ambiguity.
     const auto& seqs = layout.composeSequences();
@@ -66,6 +84,8 @@ ValidationReport LayoutValidator::validate(const KeyboardLayout& layout)
             rep.warnings.push_back("compose sequence with empty keys/output");
             continue;
         }
+        if (!allScalar(s.keys) || !allScalar(s.output))
+            rep.errors.push_back("compose sequence has a non-scalar codepoint");
         if (!seen.insert(s.keys).second)
             rep.warnings.push_back("duplicate compose sequence " + glyphStr(s.keys));
     }

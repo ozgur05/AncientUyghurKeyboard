@@ -1,0 +1,26 @@
+# Normalize line endings so the working tree is consistent across platforms and
+# Git stops warning about LF<->CRLF on every add.
+* text=auto eol=lf
+
+# Windows-specific text that should keep CRLF in the working tree.
+*.rc      text eol=crlf
+*.iss     text eol=crlf
+*.manifest text eol=crlf
+
+# Explicit text types (source, docs, config).
+*.cpp text
+*.hpp text
+*.h   text
+*.json text
+*.md  text
+*.yml text
+*.ini text
+*.txt text
+CMakeLists.txt text
+VERSION text
+
+# Binary assets — never touch line endings, never diff as text.
+*.ico binary
+*.png binary
+*.exe binary
+*.zip binary

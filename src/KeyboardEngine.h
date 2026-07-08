@@ -39,5 +39,6 @@ private:
     HHOOK          m_hook      = nullptr;
     bool           m_enabled   = true;
     bool           m_injecting = false;   // re-entrancy guard for injected input
+    bool           m_diag      = false;   // hook timing diagnostics (env AUK_DIAG)
     core::Composer m_composer;
 };

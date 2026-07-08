@@ -2,14 +2,21 @@
 #include "Logger.h"
 #include "core/Unicode.hpp"
 #include "core/VirtualKeys.hpp"
+#include "core/Stopwatch.hpp"
 
 #include <vector>
+#include <cstdlib>
 
 KeyboardEngine* KeyboardEngine::s_instance = nullptr;
 
 KeyboardEngine::KeyboardEngine()
 {
     s_instance = this;
+    // Opt-in per-keystroke hook timing: set AUK_DIAG=1 in the environment.
+    size_t len = 0;
+    char val[8] = { 0 };
+    if (getenv_s(&len, val, sizeof(val), "AUK_DIAG") == 0 && len > 0 && val[0] == '1')
+        m_diag = true;
 }
 
 KeyboardEngine::~KeyboardEngine()
@@ -52,8 +59,23 @@ LRESULT CALLBACK KeyboardEngine::HookProc(int code, WPARAM wParam, LPARAM lParam
     if (code == HC_ACTION && s_instance) {
         if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
             const auto* info = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lParam);
-            if (info && s_instance->HandleKeyDown(*info))
-                return 1; // consumed — suppress the original key
+            if (info) {
+                bool consumed;
+                if (s_instance->m_diag) {
+                    core::Stopwatch sw;
+                    consumed = s_instance->HandleKeyDown(*info);
+                    const double us = sw.micros();
+                    if (us > 500.0) { // only log unusually slow handling
+                        wchar_t buf[64];
+                        swprintf_s(buf, L"Hook handled key in %.1f us", us);
+                        Logger::Instance().Trace(buf);
+                    }
+                } else {
+                    consumed = s_instance->HandleKeyDown(*info);
+                }
+                if (consumed)
+                    return 1; // consumed — suppress the original key
+            }
         }
     }
     return CallNextHookEx(nullptr, code, wParam, lParam);

@@ -15,9 +15,15 @@ namespace core {
 
 std::optional<char32_t> parseCodepointToken(const json::Value& v, std::string& err)
 {
+    // A codepoint token must resolve to a valid Unicode scalar value: within
+    // range AND not a surrogate (U+D800..U+DFFF). Rejecting surrogates here
+    // stops a malformed layout from injecting broken UTF-16 later.
     if (v.isNumber()) {
         int n = v.asInt(-1);
         if (n < 0 || n > 0x10FFFF) { err = "codepoint out of range"; return std::nullopt; }
+        if (!unicode::isValidScalar(static_cast<char32_t>(n))) {
+            err = "codepoint is a surrogate (not a scalar value)"; return std::nullopt;
+        }
         return static_cast<char32_t>(n);
     }
     if (v.isString()) {
@@ -34,6 +40,10 @@ std::optional<char32_t> parseCodepointToken(const json::Value& v, std::string& e
             else
                 cp = std::stoul(t, nullptr, 10);
             if (cp > 0x10FFFF) { err = "codepoint out of range: " + s; return std::nullopt; }
+            if (!unicode::isValidScalar(static_cast<char32_t>(cp))) {
+                err = "codepoint is a surrogate (not a scalar value): " + s;
+                return std::nullopt;
+            }
             return static_cast<char32_t>(cp);
         } catch (...) {
             err = "invalid codepoint token: " + s;

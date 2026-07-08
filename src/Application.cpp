@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "Logger.h"
 #include "resource.h"
+#include "core/Stopwatch.hpp"
 
 #include <shellapi.h>
 #include <string>
@@ -54,14 +55,15 @@ bool FileWriteTime(const std::wstring& path, FILETIME& out)
 int Application::Run(HINSTANCE hInstance)
 {
     m_hInstance = hInstance;
+    core::Stopwatch startupSw;   // measure cold-start time for diagnostics
 
     // Single-instance guard. The name is shared with the installer's AppMutex so
     // Setup can detect a running copy and offer to close it during upgrades.
-    m_instanceMutex = CreateMutexW(nullptr, FALSE, L"AncientUyghurKeyboard_SingleInstance");
-    if (m_instanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
+    m_instanceMutex.reset(CreateMutexW(nullptr, FALSE, L"AncientUyghurKeyboard_SingleInstance"));
+    if (m_instanceMutex.valid() && GetLastError() == ERROR_ALREADY_EXISTS) {
         MessageBoxW(nullptr, L"Ancient Uyghur Keyboard is already running.",
                     L"AncientUyghurKeyboard", MB_ICONINFORMATION | MB_OK);
-        return 0;
+        return 0;   // ScopedHandle releases the mutex handle automatically
     }
 
     // Resolve data root, classify launch (first-install / upgrade / …), run
@@ -90,6 +92,12 @@ int Application::Run(HINSTANCE hInstance)
                     L"AncientUyghurKeyboard", MB_ICONERROR);
         Shutdown();
         return 2;
+    }
+
+    {
+        wchar_t buf[64];
+        swprintf_s(buf, L"Startup completed in %.1f ms", startupSw.millis());
+        Logger::Instance().Info(buf);
     }
 
     MSG msg;
@@ -242,10 +250,7 @@ void Application::CheckLayoutReload()
 
 void Application::Shutdown()
 {
-    if (m_instanceMutex) {
-        CloseHandle(m_instanceMutex);
-        m_instanceMutex = nullptr;
-    }
+    m_instanceMutex.reset();   // RAII also covers this; explicit for clarity
     if (m_hwnd)
         KillTimer(m_hwnd, kReloadTimer);
     m_engine.Uninstall();
@@ -300,11 +305,14 @@ void Application::ShowContextMenu()
     POINT pt;
     GetCursorPos(&pt);
 
-    HMENU menu = CreatePopupMenu();
-    AppendMenuW(menu, MF_STRING | (m_engine.Enabled() ? MF_CHECKED : MF_UNCHECKED),
+    // RAII: the popup (and its attached submenu) is destroyed on every exit path.
+    ScopedMenu menu;
+    if (!menu) return;
+    AppendMenuW(menu.get(), MF_STRING | (m_engine.Enabled() ? MF_CHECKED : MF_UNCHECKED),
                 kCmdToggle, L"Enabled");
 
-    // Layout submenu: one checkable item per available layout.
+    // Layout submenu: one checkable item per available layout. Once attached via
+    // MF_POPUP it is owned by (and destroyed with) the parent menu.
     HMENU sub = CreatePopupMenu();
     m_menuLayoutIds.clear();
     const std::string& curId = m_manager.currentId();
@@ -321,14 +329,13 @@ void Application::ShowContextMenu()
     }
     if (idx == 0)
         AppendMenuW(sub, MF_STRING | MF_GRAYED, 0, L"(no layouts found)");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(sub), L"Layout");
+    AppendMenuW(menu.get(), MF_POPUP, reinterpret_cast<UINT_PTR>(sub), L"Layout");
 
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, kCmdExit, L"Exit");
+    AppendMenuW(menu.get(), MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu.get(), MF_STRING, kCmdExit, L"Exit");
 
     SetForegroundWindow(m_hwnd);
-    TrackPopupMenu(menu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, m_hwnd, nullptr);
-    DestroyMenu(menu); // also destroys the submenu
+    TrackPopupMenu(menu.get(), TPM_RIGHTBUTTON, pt.x, pt.y, 0, m_hwnd, nullptr);
 }
 
 void Application::Notify(const wchar_t* title, const wchar_t* text, bool error)

@@ -64,6 +64,7 @@ inline void appendUtf16(std::u16string& s, char32_t cp)
 inline std::u32string utf8ToUtf32(const std::string& s)
 {
     std::u32string out;
+    out.reserve(s.size());          // <= one codepoint per byte; avoids reallocs
     size_t i = 0, n = s.size();
     while (i < n) {
         unsigned char c = static_cast<unsigned char>(s[i]);
@@ -101,6 +102,7 @@ inline std::u32string utf8ToUtf32(const std::string& s)
 inline std::string utf32ToUtf8(const std::u32string& s)
 {
     std::string out;
+    out.reserve(s.size());          // grows for multi-byte codepoints
     for (char32_t cp : s) appendUtf8(out, cp);
     return out;
 }
@@ -109,6 +111,7 @@ inline std::string utf32ToUtf8(const std::u32string& s)
 inline std::u32string utf16ToUtf32(const std::u16string& s)
 {
     std::u32string out;
+    out.reserve(s.size());
     for (size_t i = 0; i < s.size(); ++i) {
         char32_t u = s[i];
         if (isHighSurrogate(u) && i + 1 < s.size() && isLowSurrogate(s[i + 1])) {
@@ -126,6 +129,7 @@ inline std::u32string utf16ToUtf32(const std::u16string& s)
 inline std::u16string utf32ToUtf16(const std::u32string& s)
 {
     std::u16string out;
+    out.reserve(s.size() + 4);      // +slack for occasional surrogate pairs
     for (char32_t cp : s) appendUtf16(out, cp);
     return out;
 }

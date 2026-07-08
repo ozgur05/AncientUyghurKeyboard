@@ -10,6 +10,7 @@
 #include <vector>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <optional>
 
 namespace core {
@@ -118,7 +119,9 @@ public:
     const std::vector<Ligature>& ligatures() const { return m_ligatures; }
 
     // --- Compose sequences ---
-    void addCompose(const ComposeSequence& c) { m_compose.push_back(c); }
+    // addCompose builds hash indexes so composeLookup is O(buffer length),
+    // independent of the table size (fast even with thousands of sequences).
+    void addCompose(const ComposeSequence& c);
     const std::vector<ComposeSequence>& composeSequences() const { return m_compose; }
 
     // Probe the compose table with a partial buffer. On Exact, `out` is set.
@@ -141,6 +144,11 @@ private:
     std::map<std::string, DeadKey>         m_deadKeys;
     std::vector<Ligature>                  m_ligatures;
     std::vector<ComposeSequence>           m_compose;
+
+    // Indexes for O(1) compose matching (built by addCompose).
+    std::unordered_map<std::u32string, std::u32string> m_composeExact;   // full seq -> output
+    std::unordered_set<std::u32string>                 m_composePrefix;  // all proper prefixes
+    size_t                                             m_composeMaxLen = 0;
 };
 
 } // namespace core

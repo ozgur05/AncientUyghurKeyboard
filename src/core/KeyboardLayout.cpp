@@ -64,23 +64,38 @@ std::optional<Ligature> KeyboardLayout::matchLigature(const std::u32string& rece
     return std::nullopt;
 }
 
+void KeyboardLayout::addCompose(const ComposeSequence& c)
+{
+    m_compose.push_back(c);
+    if (c.keys.empty())
+        return;
+    m_composeExact[c.keys] = c.output;              // last definition wins
+    for (size_t i = 1; i < c.keys.size(); ++i)      // every proper prefix
+        m_composePrefix.insert(c.keys.substr(0, i));
+    if (c.keys.size() > m_composeMaxLen)
+        m_composeMaxLen = c.keys.size();
+}
+
 ComposeMatch KeyboardLayout::composeLookup(const std::u32string& buffer,
                                            std::u32string& out) const
 {
     if (buffer.empty())
         return m_compose.empty() ? ComposeMatch::None : ComposeMatch::Prefix;
 
-    bool prefix = false;
-    for (const auto& seq : m_compose) {
-        if (seq.keys == buffer) {           // exact (greedy: first exact wins)
-            out = seq.output;
-            return ComposeMatch::Exact;
-        }
-        if (seq.keys.size() > buffer.size() &&
-            seq.keys.compare(0, buffer.size(), buffer) == 0)
-            prefix = true;                  // buffer is a proper prefix of seq
+    // Early-out: nothing can match a buffer longer than the longest sequence.
+    if (buffer.size() > m_composeMaxLen)
+        return ComposeMatch::None;
+
+    // Exact match wins (greedy shortest), then proper-prefix. Both are O(1)
+    // hash probes, so lookup cost is independent of the table size.
+    auto it = m_composeExact.find(buffer);
+    if (it != m_composeExact.end()) {
+        out = it->second;
+        return ComposeMatch::Exact;
     }
-    return prefix ? ComposeMatch::Prefix : ComposeMatch::None;
+    if (m_composePrefix.find(buffer) != m_composePrefix.end())
+        return ComposeMatch::Prefix;
+    return ComposeMatch::None;
 }
 
 void KeyboardLayout::sortLigatures()

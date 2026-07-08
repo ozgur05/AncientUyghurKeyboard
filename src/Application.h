@@ -7,6 +7,7 @@
 #include "Config.h"
 #include "KeyboardEngine.h"
 #include "InstallerHelper.h"
+#include "win/ScopedResources.h"
 #include "core/KeyboardLayoutManager.hpp"
 
 class Application {
@@ -46,7 +47,7 @@ private:
 
     HINSTANCE       m_hInstance     = nullptr;
     HWND            m_hwnd          = nullptr;
-    HANDLE          m_instanceMutex = nullptr; // single-instance / installer AppMutex
+    ScopedHandle    m_instanceMutex;           // single-instance / installer AppMutex (RAII)
     NOTIFYICONDATAW m_nid           = {};
 
     Config                        m_config;

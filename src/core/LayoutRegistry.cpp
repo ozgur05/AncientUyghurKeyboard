@@ -9,37 +9,55 @@ namespace fs = std::filesystem;
 
 namespace core {
 
+namespace {
+// A layout id must be a plain file stem: non-empty and free of path separators
+// or drive markers, so it can never be used to reach outside the layouts dir.
+bool safeId(const std::string& id)
+{
+    if (id.empty()) return false;
+    return id.find_first_of("/\\:") == std::string::npos &&
+           id != "." && id != "..";
+}
+} // namespace
+
 size_t LayoutRegistry::scan(const std::string& directory)
 {
     m_layouts.clear();
 
-    std::error_code ec;
-    if (!fs::exists(directory, ec) || !fs::is_directory(directory, ec))
-        return 0;
+    // Whole scan is exception-safe: a bad entry is skipped, never fatal.
+    try {
+        std::error_code ec;
+        if (!fs::exists(directory, ec) || !fs::is_directory(directory, ec))
+            return 0;
 
-    for (const auto& entry : fs::directory_iterator(directory, ec)) {
-        if (ec) break;
-        if (!entry.is_regular_file()) continue;
-        const fs::path& p = entry.path();
-        if (p.extension() != ".json") continue;
+        for (const auto& entry : fs::directory_iterator(directory, ec)) {
+            if (ec) break;
+            std::error_code fec;
+            if (!entry.is_regular_file(fec) || fec) continue;
+            const fs::path& p = entry.path();
+            if (p.extension() != ".json") continue;
 
-        LayoutInfo info;
-        info.path = p.string();
-        info.id   = p.stem().string();
-        info.name = info.id;
+            LayoutInfo info;
+            info.path = p.string();
+            info.id   = p.stem().string();
+            info.name = info.id;
+            if (!safeId(info.id))
+                continue; // reject ids that could escape the directory
 
-        // Parse just enough to get name/id and validity for the listing.
-        ParseResult pr = LayoutParser::parseFile(info.path);
-        if (pr.ok()) {
-            const auto& meta = pr.layout->meta();
-            if (!meta.id.empty())   info.id   = meta.id;
-            if (!meta.name.empty()) info.name = meta.name;
-            ValidationReport vr = LayoutValidator::validate(*pr.layout);
-            info.valid = vr.ok();
-        } else {
-            info.valid = false;
+            ParseResult pr = LayoutParser::parseFile(info.path);
+            if (pr.ok()) {
+                const auto& meta = pr.layout->meta();
+                if (!meta.id.empty() && safeId(meta.id)) info.id = meta.id;
+                if (!meta.name.empty())                  info.name = meta.name;
+                ValidationReport vr = LayoutValidator::validate(*pr.layout);
+                info.valid = vr.ok();
+            } else {
+                info.valid = false;
+            }
+            m_layouts.push_back(std::move(info));
         }
-        m_layouts.push_back(std::move(info));
+    } catch (const std::exception&) {
+        // Filesystem race / encoding issue: keep whatever we gathered.
     }
 
     std::sort(m_layouts.begin(), m_layouts.end(),
