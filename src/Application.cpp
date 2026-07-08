@@ -17,6 +17,7 @@ constexpr UINT    kReloadMs      = 1000;
 // Context-menu command IDs.
 constexpr UINT    kCmdToggle     = 100;
 constexpr UINT    kCmdExit       = 101;
+constexpr UINT    kCmdDesigner   = 102;   // launch the layout designer
 constexpr UINT    kCmdLayoutBase = 1000; // layout items occupy [base, base+N)
 
 HICON LoadAppIcon(HINSTANCE hInst)
@@ -302,6 +303,22 @@ void Application::ToggleEnabled()
     Logger::Instance().Info(m_engine.Enabled() ? L"Enabled" : L"Disabled");
 }
 
+void Application::LaunchDesigner()
+{
+    // The designer ships beside this executable. Launching it (rather than
+    // hosting a GUI inside the hook process) keeps the two cleanly separated;
+    // when the designer saves a layout into the layouts dir the running
+    // keyboard picks it up automatically via the hot-reload watcher.
+    const std::wstring exe = Config::ExeDir() + L"\\AncientUyghurDesigner.exe";
+    HINSTANCE rc = ShellExecuteW(m_hwnd, L"open", exe.c_str(), nullptr,
+                                 Config::ExeDir().c_str(), SW_SHOWNORMAL);
+    if (reinterpret_cast<INT_PTR>(rc) <= 32) {
+        Logger::Instance().Error(L"Failed to launch layout designer: " + exe);
+        Notify(L"Layout Designer",
+               L"Could not start the designer (AncientUyghurDesigner.exe not found).", true);
+    }
+}
+
 void Application::ShowContextMenu()
 {
     POINT pt;
@@ -333,6 +350,8 @@ void Application::ShowContextMenu()
         AppendMenuW(sub, MF_STRING | MF_GRAYED, 0, L"(no layouts found)");
     AppendMenuW(menu.get(), MF_POPUP, reinterpret_cast<UINT_PTR>(sub), L"Layout");
 
+    AppendMenuW(menu.get(), MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu.get(), MF_STRING, kCmdDesigner, L"Layout Designer…");
     AppendMenuW(menu.get(), MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu.get(), MF_STRING, kCmdExit, L"Exit");
 
@@ -379,6 +398,7 @@ LRESULT Application::HandleMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         case WM_COMMAND: {
             UINT id = LOWORD(wp);
             if (id == kCmdToggle) { ToggleEnabled(); return 0; }
+            if (id == kCmdDesigner) { LaunchDesigner(); return 0; }
             if (id == kCmdExit)   { PostMessageW(hwnd, WM_CLOSE, 0, 0); return 0; }
             if (id >= kCmdLayoutBase &&
                 id < kCmdLayoutBase + m_menuLayoutIds.size()) {

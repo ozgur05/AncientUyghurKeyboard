@@ -40,6 +40,7 @@ private:
     void Notify(const wchar_t* title, const wchar_t* text, bool error);
 
     void ToggleEnabled();
+    void LaunchDesigner();   // start the graphical layout editor
 
     // Hidden window that receives tray + menu + timer messages.
     static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);

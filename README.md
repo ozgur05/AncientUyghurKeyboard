@@ -283,6 +283,55 @@ the tray persists the choice. Two layouts ship by default:
 
 ---
 
+## Layout Designer (graphical editor)
+
+A separate GUI editor, **`AncientUyghurDesigner.exe`**, ships beside the app.
+Open it from the tray menu (**Layout Designer…**) or run it directly. It edits
+the same JSON layout files, so anything you create loads straight into the
+keyboard.
+
+**Window:** a visual **ANSI/ISO keyboard canvas** (switch via *View*), a **layer
+selector** (Base / Shift / AltGr / Shift+AltGr), a **live-typing preview** (type
+into it to see the active layout compose real output), and a **validation
+panel** listing errors/warnings as you edit. Undo/redo, copy/paste of a whole
+key's mappings, and recent files are on the *Edit* and *File* menus.
+
+### Creating a new layout
+
+1. **File ▸ New**, then **Layout ▸ Metadata…** to set the identifier, name,
+   language, author, version, and description.
+2. Click a key on the canvas (or double-click to edit it). In the **Edit Key**
+   dialog set each modifier level to *Emit* (type/pick code points), *Dead key*
+   (name a dead-key class), or *Compose*. Use **Pick…** to search Unicode by
+   **name** or **code point** (SMP fully supported) and insert it.
+3. Watch the **validation panel** — duplicate mappings, dangling dead keys,
+   non-scalar code points, and ambiguous compose sequences are flagged live.
+4. **File ▸ Save As…** into the layouts folder (the dialog defaults there). The
+   running keyboard hot-reloads it automatically; pick it from the tray
+   **Layout** submenu to switch.
+
+### Editing / importing / exporting
+
+- **Edit an existing layout:** **File ▸ Open…** (or **Import…**) a `.json`,
+  change it, **Save**. A `.bak` copy of the previous file is written first.
+- **Export:** **File ▸ Export…** writes the current layout to any path without
+  changing the working file.
+- **Duplicate:** **Layout ▸ Duplicate…** clones the current mappings under a new
+  id/name so you can save it as a variant.
+
+### Best practices
+
+- Give every layout a unique, lowercase `id` (it becomes the file stem and the
+  tray label). Keep `id` free of spaces and path separators.
+- Bump `version` when you change a published layout.
+- Prefer **code points** (`U+10F70`) over literal characters for clarity, and
+  keep the validation panel clean before saving — errors mean the file will be
+  rejected on load.
+- Save into `%APPDATA%\AncientUyghurKeyboard\layouts` so the keyboard picks the
+  layout up without a restart.
+
+---
+
 ## Continuous integration
 
 `.github/workflows/build.yml` runs on `windows-latest` + MSVC in three jobs:

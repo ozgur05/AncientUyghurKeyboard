@@ -100,6 +100,7 @@ public:
 
     // --- Keys ---
     void setKey(unsigned vk, const KeyDef& def) { m_keys[vk] = def; }
+    void removeKey(unsigned vk) { m_keys.erase(vk); }
     const KeyDef* key(unsigned vk) const {
         auto it = m_keys.find(vk);
         return it == m_keys.end() ? nullptr : &it->second;
@@ -108,6 +109,7 @@ public:
 
     // --- Dead keys ---
     void addDeadKey(const DeadKey& dk) { m_deadKeys[dk.id] = dk; }
+    void removeDeadKey(const std::string& id) { m_deadKeys.erase(id); }
     const DeadKey* deadKey(const std::string& id) const {
         auto it = m_deadKeys.find(id);
         return it == m_deadKeys.end() ? nullptr : &it->second;
@@ -116,12 +118,19 @@ public:
 
     // --- Ligatures (kept sorted longest-first for greedy matching) ---
     void addLigature(const Ligature& lig) { m_ligatures.push_back(lig); sortLigatures(); }
+    void clearLigatures() { m_ligatures.clear(); }
     const std::vector<Ligature>& ligatures() const { return m_ligatures; }
 
     // --- Compose sequences ---
     // addCompose builds hash indexes so composeLookup is O(buffer length),
     // independent of the table size (fast even with thousands of sequences).
     void addCompose(const ComposeSequence& c);
+    void clearCompose() {
+        m_compose.clear();
+        m_composeExact.clear();
+        m_composePrefix.clear();
+        m_composeMaxLen = 0;
+    }
     const std::vector<ComposeSequence>& composeSequences() const { return m_compose; }
 
     // Probe the compose table with a partial buffer. On Exact, `out` is set.

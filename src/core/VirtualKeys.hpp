@@ -11,6 +11,7 @@
 #include <string>
 #include <cctype>
 #include <cstdint>
+#include <cstdio>
 #include <optional>
 
 namespace core::vk {
@@ -133,5 +134,41 @@ inline std::optional<unsigned> fromName(const std::string& raw)
 
 // Is this VK an ASCII letter key (A-Z)? Used for Caps Lock logic.
 inline bool isLetter(unsigned vk) { return vk >= KeyA && vk <= KeyZ; }
+
+// Canonical name for a VK code, suitable for writing back into a layout file.
+// Letters/digits return their single character; known keys return the same
+// spelling fromName() accepts; anything else returns "0xNN". fromName(toName(v))
+// == v for every value this project maps.
+inline std::string toName(unsigned vk)
+{
+    if (vk >= KeyA && vk <= KeyZ) return std::string(1, static_cast<char>('A' + (vk - KeyA)));
+    if (vk >= Key0 && vk <= Key9) return std::string(1, static_cast<char>('0' + (vk - Key0)));
+    switch (vk) {
+        case Space:      return "Space";
+        case Enter:      return "Enter";
+        case Tab:        return "Tab";
+        case Back:       return "Backspace";
+        case Escape:     return "Escape";
+        case Capital:    return "CapsLock";
+        case OEM_1:      return "OEM_1";
+        case OEM_2:      return "OEM_2";
+        case OEM_3:      return "OEM_3";
+        case OEM_4:      return "OEM_4";
+        case OEM_5:      return "OEM_5";
+        case OEM_6:      return "OEM_6";
+        case OEM_7:      return "OEM_7";
+        case OEM_Plus:   return "OEM_PLUS";
+        case OEM_Minus:  return "OEM_MINUS";
+        case OEM_Comma:  return "OEM_COMMA";
+        case OEM_Period: return "OEM_PERIOD";
+        default: break;
+    }
+    if (vk >= Numpad0 && vk <= Numpad9)
+        return std::string("NUMPAD") + static_cast<char>('0' + (vk - Numpad0));
+    // Fallback: hex numeric, which fromName() also accepts.
+    char buf[8];
+    std::snprintf(buf, sizeof(buf), "0x%02X", vk);
+    return std::string(buf);
+}
 
 } // namespace core::vk

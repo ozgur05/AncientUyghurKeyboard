@@ -77,6 +77,10 @@ add_library(auk_core STATIC
     src/core/Version.cpp
     src/core/InstallationDetector.cpp
     src/core/Migration.cpp
+    src/core/LayoutSerializer.cpp
+    src/core/LayoutDocument.cpp
+    src/core/UnicodeNames.cpp
+    src/core/KeyCaps.cpp
 )
 target_include_directories(auk_core PUBLIC src)
 target_compile_features(auk_core PUBLIC cxx_std_20)
@@ -121,6 +125,31 @@ if(WIN32)
                 "${CMAKE_SOURCE_DIR}/layouts"
                 "$<TARGET_FILE_DIR:AncientUyghurKeyboard>/layouts"
         COMMENT "Copying keyboard layouts")
+
+    # ----- Graphical layout designer (separate GUI executable) -----
+    add_executable(AncientUyghurDesigner WIN32
+        src/designer/main.cpp
+        src/designer/DesignerWindow.cpp
+        src/designer/KeyEditDialog.cpp
+        src/designer/UnicodePicker.cpp
+        src/designer/designer.rc
+    )
+    target_include_directories(AncientUyghurDesigner PRIVATE src src/designer)
+    target_link_libraries(AncientUyghurDesigner PRIVATE
+        auk_core comctl32 comdlg32 shell32 ole32 uuid gdi32 user32)
+    auk_warnings(AncientUyghurDesigner)
+    auk_buildinfo(AncientUyghurDesigner)
+    if(MSVC)
+        target_link_options(AncientUyghurDesigner PRIVATE /SUBSYSTEM:WINDOWS)
+    endif()
+
+    # Put the designer next to the keyboard app so the tray "Layout Designer…"
+    # item can launch it from the same folder.
+    add_custom_command(TARGET AncientUyghurDesigner POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:AncientUyghurDesigner>"
+                "$<TARGET_FILE_DIR:AncientUyghurKeyboard>/AncientUyghurDesigner.exe"
+        COMMENT "Placing designer beside the keyboard app")
 endif()
 
 # ---------------------------------------------------------------------------
@@ -143,6 +172,7 @@ if(AUK_BUILD_TESTS)
         tests/test_migration.cpp
         tests/test_hardening.cpp
         tests/test_buildinfo.cpp
+        tests/test_designer.cpp
     )
     target_link_libraries(auk_tests PRIVATE auk_core)
     target_include_directories(auk_tests PRIVATE src)
