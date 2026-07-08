@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "Logger.h"
 #include "resource.h"
+#include "BuildInfo.hpp"
 #include "core/Stopwatch.hpp"
 
 #include <shellapi.h>
@@ -75,6 +76,7 @@ int Application::Run(HINSTANCE hInstance)
     m_config.Load();
     Logger::Instance().Init(m_config.LogPath(), m_config.GetLogLevel());
     Logger::Instance().Info(L"=== AncientUyghurKeyboard starting ===");
+    Logger::Instance().Info(L"Build: " + Utf8ToWide(buildinfo::full()));
     ReportInstallStatus();
 
     if (!InitInstance()) {

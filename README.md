@@ -285,13 +285,26 @@ the tray persists the choice. Two layouts ship by default:
 
 ## Continuous integration
 
-`.github/workflows/build.yml` runs on `windows-latest` + MSVC and, on every
-push, it: configures + builds **Release**, runs the **unit tests** (`ctest`),
-stages the payload, builds the **portable ZIP**, builds the **installer** with
-Inno Setup, and uploads three artifacts — the bare `.exe`, the
-`AncientUyghurKeyboard_Setup.exe`, and the portable `.zip`. Pushing a version
-tag (e.g. `v0.4.0`) additionally publishes a **GitHub Release** with the
-installer, portable ZIP, and executable attached.
+`.github/workflows/build.yml` runs on `windows-latest` + MSVC in three jobs:
+
+- **build** — a Debug + Release matrix; each configuration is compiled and the
+  full `ctest` suite is run (any failing test fails the job).
+- **quality** — cppcheck static analysis (advisory). `.clang-format` and
+  `.clang-tidy` are included for local linting/formatting.
+- **package** — builds Release, then produces the complete release set: the
+  **installer** (Inno Setup), **portable ZIP**, **source archive**, Release
+  **PDB** symbols, generated **ReleaseNotes.md**, and **SHA256SUMS.txt**;
+  optionally **code-signs** the binaries (Authenticode, if the signing secret is
+  configured); and runs `scripts/verify-release.ps1` as a gate.
+
+Each build embeds provenance (version + git short hash + CI build number, via
+`BuildInfo.hpp`) that the app logs at startup. Pushing a version tag (e.g.
+`v0.4.0`) publishes a **GitHub Release** with the installer, portable/source
+ZIPs, and checksums attached.
+
+See [`docs/CI_AND_PUSH.md`](docs/CI_AND_PUSH.md) for creating the remote,
+pushing, tagging a release, configuring optional code signing, and what to watch
+on the first CI run.
 
 ---
 

@@ -1,0 +1,32 @@
+# clang-format configuration for AncientUyghurKeyboard.
+# Matches the existing hand-written style: 4-space indent, 100-col limit,
+# Allman-ish braces for functions but attached elsewhere, pointer-left.
+---
+Language:        Cpp
+BasedOnStyle:    LLVM
+Standard:        c++20
+
+IndentWidth:     4
+TabWidth:        4
+UseTab:          Never
+ColumnLimit:     100
+
+# Braces: functions on their own line (as written throughout src/), other
+# blocks attached.
+BreakBeforeBraces: Mozilla
+
+AccessModifierOffset: -4
+PointerAlignment: Left
+ReferenceAlignment: Left
+AlignAfterOpenBracket: Align
+AlignTrailingComments: true
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortCaseLabelsOnASingleLine: true
+SpaceBeforeParens: ControlStatements
+SortIncludes:    false
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+FixNamespaceComments: true
+IndentCaseLabels: true
+NamespaceIndentation: None

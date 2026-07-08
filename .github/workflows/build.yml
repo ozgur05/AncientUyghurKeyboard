@@ -7,13 +7,72 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Cancel superseded runs on the same ref to save runner minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write   # required for the tag-triggered GitHub Release step
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Build (Debug + Release) and run the unit tests on both configurations.
+  # ---------------------------------------------------------------------------
   build:
     runs-on: windows-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [ Debug, Release ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so git describe / short hash work
+
+      - name: Configure (CMake, MSVC)
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.config }}
+
+      - name: Test
+        run: ctest --test-dir build -C ${{ matrix.config }} --output-on-failure
+
+  # ---------------------------------------------------------------------------
+  # 2. Static-analysis / quality gate (advisory: does not block the build).
+  # ---------------------------------------------------------------------------
+  quality:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: choco install cppcheck --no-progress -y
+
+      - name: Run cppcheck
+        shell: pwsh
+        run: |
+          $cppcheck = "C:\Program Files\Cppcheck\cppcheck.exe"
+          & "$cppcheck" --std=c++20 --enable=warning,performance,portability `
+            --inline-suppr --error-exitcode=0 --quiet `
+            -I src src/core src tests bench
+          Write-Host "cppcheck completed (advisory)."
+
+  # ---------------------------------------------------------------------------
+  # 3. Package: installer, portable ZIP, PDB, source archive, checksums,
+  #    optional signing, and (on tags) a GitHub Release.
+  # ---------------------------------------------------------------------------
+  package:
+    runs-on: windows-latest
+    needs: [ build ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Read version
         id: ver
@@ -23,16 +82,14 @@ jobs:
           "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host "Version: $v"
 
-      - name: Configure (CMake, MSVC)
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+      - name: Configure + build Release
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          cmake --build build --config Release
 
-      - name: Build (Release)
-        run: cmake --build build --config Release
-
-      - name: Run unit tests
+      - name: Test Release
         run: ctest --test-dir build -C Release --output-on-failure
 
-      # ---- Stage a clean payload shared by the ZIP and the installer ----
       - name: Stage dist
         shell: pwsh
         run: |
@@ -41,54 +98,111 @@ jobs:
           Copy-Item -Recurse layouts dist\layouts
           Copy-Item LICENSE  dist\LICENSE
           Copy-Item README.md dist\README.md
+          if (Test-Path build\Release\AncientUyghurKeyboard.pdb) {
+            Copy-Item build\Release\AncientUyghurKeyboard.pdb dist\
+          }
 
-      # ---- Portable ZIP: payload + portable marker ----
       - name: Build portable ZIP
         shell: pwsh
         run: |
-          $stage = "AncientUyghurKeyboard-${{ steps.ver.outputs.version }}-portable"
+          $stage = "portable"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Copy-Item dist\* -Recurse -Destination $stage
+          Copy-Item dist\AncientUyghurKeyboard.exe $stage\
+          Copy-Item -Recurse dist\layouts $stage\layouts
+          Copy-Item dist\LICENSE $stage\LICENSE
+          Copy-Item dist\README.md $stage\README.md
           Copy-Item installer\portable.ini $stage\portable.ini
-          Compress-Archive -Path "$stage\*" -DestinationPath "$stage.zip" -Force
-          Write-Host "Created $stage.zip"
+          Compress-Archive -Path "$stage\*" -DestinationPath "AncientUyghurKeyboard_Portable.zip" -Force
 
-      # ---- Installer: Inno Setup ----
+      - name: Source archive
+        shell: pwsh
+        run: git archive --format=zip -o AncientUyghurKeyboard_Source.zip HEAD
+
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
 
       - name: Build installer
         shell: pwsh
         run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          $ErrorActionPreference = "Stop"
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found at $iscc" }
           & "$iscc" "/DAppVersion=${{ steps.ver.outputs.version }}" "/DSourceDir=..\dist" installer\AncientUyghurKeyboard.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
           Copy-Item installer\Output\AncientUyghurKeyboard_Setup.exe .\AncientUyghurKeyboard_Setup.exe
 
-      # ---- Upload individual build artifacts ----
-      - name: Upload EXE
+      - name: Code sign (optional)
+        shell: pwsh
+        env:
+          SIGN_PFX_BASE64: ${{ secrets.SIGN_PFX_BASE64 }}
+          SIGN_PFX_PASSWORD: ${{ secrets.SIGN_PFX_PASSWORD }}
+        run: |
+          if (-not $env:SIGN_PFX_BASE64) {
+            Write-Host "No signing certificate configured (secret SIGN_PFX_BASE64 absent) — shipping unsigned."
+            exit 0
+          }
+          $ErrorActionPreference = "Stop"
+          [IO.File]::WriteAllBytes("cert.pfx", [Convert]::FromBase64String($env:SIGN_PFX_BASE64))
+          $sdk = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+                 Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $sdk) { throw "signtool.exe not found" }
+          foreach ($f in @("AncientUyghurKeyboard_Setup.exe", "dist\AncientUyghurKeyboard.exe")) {
+            & $sdk.FullName sign /f cert.pfx /p $env:SIGN_PFX_PASSWORD `
+              /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $f
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed for $f" }
+            & $sdk.FullName verify /pa $f
+          }
+          Remove-Item cert.pfx -Force
+
+      - name: Release notes
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.ver.outputs.version }}"
+          $prev = git describe --tags --abbrev=0 --always HEAD^ 2>$null
+          "# Ancient Uyghur Keyboard $ver" | Out-File ReleaseNotes.md -Encoding utf8
+          "" | Out-File ReleaseNotes.md -Append -Encoding utf8
+          "## Changes" | Out-File ReleaseNotes.md -Append -Encoding utf8
+          if ($prev) { $range = "$prev..HEAD" } else { $range = "HEAD" }
+          git log --pretty=format:"- %s (%h)" $range | Out-File ReleaseNotes.md -Append -Encoding utf8
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          $files = @("AncientUyghurKeyboard_Setup.exe",
+                     "AncientUyghurKeyboard_Portable.zip",
+                     "AncientUyghurKeyboard_Source.zip")
+          Remove-Item SHA256SUMS.txt -ErrorAction Ignore
+          foreach ($f in $files) {
+            if (Test-Path $f) {
+              $h = (Get-FileHash -Algorithm SHA256 $f).Hash.ToLower()
+              "$h  $f" | Out-File SHA256SUMS.txt -Append -Encoding ascii
+            }
+          }
+          Get-Content SHA256SUMS.txt
+
+      - name: Verify release
+        shell: pwsh
+        run: pwsh scripts/verify-release.ps1 -Dir . -Version "${{ steps.ver.outputs.version }}"
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: AncientUyghurKeyboard-exe
-          path: dist/AncientUyghurKeyboard.exe
+          name: AncientUyghurKeyboard-${{ steps.ver.outputs.version }}
+          path: |
+            AncientUyghurKeyboard_Setup.exe
+            AncientUyghurKeyboard_Portable.zip
+            AncientUyghurKeyboard_Source.zip
+            SHA256SUMS.txt
+            ReleaseNotes.md
+            dist/AncientUyghurKeyboard.pdb
 
-      - name: Upload installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: AncientUyghurKeyboard-setup
-          path: AncientUyghurKeyboard_Setup.exe
-
-      - name: Upload portable ZIP
-        uses: actions/upload-artifact@v4
-        with:
-          name: AncientUyghurKeyboard-portable
-          path: AncientUyghurKeyboard-*-portable.zip
-
-      # ---- Release on tag: attach setup + portable ZIP ----
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          body_path: ReleaseNotes.md
           files: |
             AncientUyghurKeyboard_Setup.exe
-            AncientUyghurKeyboard-*-portable.zip
-            dist/AncientUyghurKeyboard.exe
+            AncientUyghurKeyboard_Portable.zip
+            AncientUyghurKeyboard_Source.zip
+            SHA256SUMS.txt

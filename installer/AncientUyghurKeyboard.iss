@@ -24,7 +24,7 @@
 
 [Setup]
 ; A stable AppId ties versions together so upgrades are detected. Do not change.
-AppId={{7E4C7B1A-2F3D-4C7E-9A11-AUK0UYGHUR001}
+AppId={{7E4C7B1A-2F3D-4C7E-9A11-0A1B2C3D4E5F}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
@@ -87,24 +87,9 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; F
 ; NOTE: no [UninstallDelete]. User data under %APPDATA%\AncientUyghurKeyboard
 ; (config.ini, app.log, installed_version.txt, user layouts) is intentionally
 ; left in place so settings and custom layouts survive uninstall/reinstall.
-
-[Code]
-// Block installing an older version over a newer one (prevents accidental
-// downgrades during silent deployment).
-function InitializeSetup(): Boolean;
-var
-  PrevVersion: String;
-begin
-  Result := True;
-  if RegQueryStringValue(HKA, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1',
-                         'DisplayVersion', PrevVersion) then
-  begin
-    if (CompareStr(PrevVersion, '{#AppVersion}') > 0) then
-    begin
-      if not WizardSilent() then
-        MsgBox('A newer version (' + PrevVersion + ') is already installed. '
-             + 'Setup will now exit.', mbInformation, MB_OK);
-      Result := False;
-    end;
-  end;
-end;
+;
+; Upgrade handling is Inno Setup's standard AppId-based mechanism: the stable
+; AppId above lets Setup detect and replace a previous install in place. The
+; application itself additionally classifies first-run/upgrade/downgrade at
+; launch (see InstallationDetector) and preserves settings accordingly, so no
+; custom install-time version logic is required here.

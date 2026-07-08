@@ -1,0 +1,26 @@
+# clang-tidy configuration for AncientUyghurKeyboard.
+#
+# A focused, low-noise set: real bug patterns and portability/correctness checks,
+# without the highly opinionated readability/naming churn that would fight the
+# existing hand-written style. Run in CI as advisory (not warnings-as-errors) so
+# it flags issues without blocking on subjective findings.
+---
+Checks: >
+  clang-analyzer-*,
+  bugprone-*,
+  performance-*,
+  misc-*,
+  cppcoreguidelines-narrowing-conversions,
+  cppcoreguidelines-slicing,
+  modernize-use-nullptr,
+  modernize-use-override,
+  modernize-use-using,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -misc-non-private-member-variables-in-classes,
+  -misc-no-recursion,
+  -performance-avoid-endl
+
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*/(src|tests|bench)/.*'
+FormatStyle: file

@@ -15,6 +15,53 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(AUK_BUILD_TESTS "Build unit tests" ON)
+option(AUK_BUILD_BENCH "Build the performance benchmark utility" ON)
+option(AUK_WERROR      "Treat compiler warnings as errors" OFF)
+
+# ---------------------------------------------------------------------------
+# Build provenance: git short hash + build number embedded via BuildInfo.hpp.
+# ---------------------------------------------------------------------------
+find_package(Git QUIET)
+set(AUK_GIT_HASH "unknown")
+if(Git_FOUND)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --short=12 HEAD
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        OUTPUT_VARIABLE AUK_GIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+    if(AUK_GIT_HASH STREQUAL "")
+        set(AUK_GIT_HASH "unknown")
+    endif()
+endif()
+
+set(AUK_BUILD_NUMBER "$ENV{GITHUB_RUN_NUMBER}")
+if(AUK_BUILD_NUMBER STREQUAL "")
+    set(AUK_BUILD_NUMBER "0")
+endif()
+message(STATUS "AncientUyghurKeyboard ${AUK_VERSION} (git ${AUK_GIT_HASH}, build ${AUK_BUILD_NUMBER})")
+
+# Apply the shared warning policy (and optional warnings-as-errors) to a target.
+function(auk_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /permissive- /utf-8)
+        if(AUK_WERROR)
+            target_compile_options(${target} PRIVATE /WX)
+        endif()
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra)
+        if(AUK_WERROR)
+            target_compile_options(${target} PRIVATE -Werror)
+        endif()
+    endif()
+endfunction()
+
+# Inject build provenance definitions into a target.
+function(auk_buildinfo target)
+    target_compile_definitions(${target} PRIVATE
+        AUK_GIT_HASH="${AUK_GIT_HASH}"
+        AUK_BUILD_NUMBER="${AUK_BUILD_NUMBER}")
+endfunction()
 
 # ---------------------------------------------------------------------------
 # core — portable mapping library (Win32-free, so it is unit-testable anywhere)
@@ -33,10 +80,7 @@ add_library(auk_core STATIC
 )
 target_include_directories(auk_core PUBLIC src)
 target_compile_features(auk_core PUBLIC cxx_std_20)
-
-if(MSVC)
-    target_compile_options(auk_core PRIVATE /W4 /permissive- /utf-8)
-endif()
+auk_warnings(auk_core)
 
 # ---------------------------------------------------------------------------
 # The Windows application (only when targeting Windows)
@@ -58,12 +102,18 @@ if(WIN32)
         src/InstallerHelper.cpp
         src/resources.rc
     )
+    target_include_directories(AncientUyghurKeyboard PRIVATE src) # for rc.exe includes
     target_link_libraries(AncientUyghurKeyboard PRIVATE
         auk_core user32 gdi32 shell32 advapi32 ole32 uuid)
+    auk_warnings(AncientUyghurKeyboard)
+    auk_buildinfo(AncientUyghurKeyboard)
 
     if(MSVC)
-        target_compile_options(AncientUyghurKeyboard PRIVATE /W4 /permissive- /utf-8)
         target_link_options(AncientUyghurKeyboard PRIVATE /SUBSYSTEM:WINDOWS)
+        # Emit a standalone PDB for Release so debug symbols can be shipped.
+        target_compile_options(AncientUyghurKeyboard PRIVATE $<$<CONFIG:Release>:/Zi>)
+        target_link_options(AncientUyghurKeyboard PRIVATE
+            $<$<CONFIG:Release>:/DEBUG> $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
     endif()
 
     add_custom_command(TARGET AncientUyghurKeyboard POST_BUILD
@@ -92,8 +142,11 @@ if(AUK_BUILD_TESTS)
         tests/test_installdetector.cpp
         tests/test_migration.cpp
         tests/test_hardening.cpp
+        tests/test_buildinfo.cpp
     )
     target_link_libraries(auk_tests PRIVATE auk_core)
+    target_include_directories(auk_tests PRIVATE src)
+    auk_buildinfo(auk_tests)
     if(MSVC)
         target_compile_options(auk_tests PRIVATE /utf-8)
     endif()
@@ -103,7 +156,6 @@ endif()
 # ---------------------------------------------------------------------------
 # Benchmark utility (portable; built on demand, not part of the test suite)
 # ---------------------------------------------------------------------------
-option(AUK_BUILD_BENCH "Build the performance benchmark utility" ON)
 if(AUK_BUILD_BENCH)
     add_executable(auk_bench bench/benchmark.cpp)
     target_link_libraries(auk_bench PRIVATE auk_core)
