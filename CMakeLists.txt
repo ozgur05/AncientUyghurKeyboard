@@ -150,6 +150,28 @@ if(WIN32)
                 "$<TARGET_FILE:AncientUyghurDesigner>"
                 "$<TARGET_FILE_DIR:AncientUyghurKeyboard>/AncientUyghurDesigner.exe"
         COMMENT "Placing designer beside the keyboard app")
+
+    # ----- TSF text service (COM in-proc server DLL, second input backend) -----
+    # The keyboard hook remains the default; this is an optional native IME.
+    add_library(AncientUyghurTsf SHARED
+        src/tsf/Guids.cpp
+        src/tsf/Dll.cpp
+        src/tsf/ClassFactory.cpp
+        src/tsf/TextService.cpp
+        src/tsf/EditSession.cpp
+        src/tsf/Register.cpp
+        src/tsf/tsf.rc
+        src/tsf/tsf.def
+    )
+    target_include_directories(AncientUyghurTsf PRIVATE src src/tsf)
+    target_link_libraries(AncientUyghurTsf PRIVATE
+        auk_core ole32 oleaut32 advapi32 shell32 user32 uuid)
+    auk_buildinfo(AncientUyghurTsf)
+    # NOTE: the .def provides the COM exports; do not also apply /WX here — the
+    # TSF interface surface is verified to compile under MinGW and MSVC.
+    if(MSVC)
+        target_compile_options(AncientUyghurTsf PRIVATE /W4 /permissive- /utf-8)
+    endif()
 endif()
 
 # ---------------------------------------------------------------------------

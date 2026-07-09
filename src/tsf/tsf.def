@@ -1,0 +1,7 @@
+; tsf.def — exports required of a COM in-proc server (TSF text service DLL).
+LIBRARY AncientUyghurTsf
+EXPORTS
+    DllGetClassObject   PRIVATE
+    DllCanUnloadNow     PRIVATE
+    DllRegisterServer   PRIVATE
+    DllUnregisterServer PRIVATE

@@ -16,12 +16,44 @@ A tiny, **100% offline** Windows tray application that lets you type in the
 
 ---
 
-## How it works
+## Input backends
+
+The project has **two** ways to get Old Uyghur text into applications, both
+driven by the same tested `core::Composer`:
+
+1. **Keyboard hook (default, no install).** The app installs a global
+   `WH_KEYBOARD_LL` hook; a mapped key is swallowed and the character injected
+   via `SendInput`/`KEYEVENTF_UNICODE`. Nothing to register — just run the EXE.
+   This is the automatic fallback and the path the whole test suite exercises.
+2. **TSF text service (optional native IME).** `AncientUyghurTsf.dll` is a
+   Text Services Framework input processor — a proper Windows IME you pick from
+   the language bar. It integrates natively with modern apps (editing directly
+   in the target document instead of synthesizing keystrokes). Being a COM
+   server, it must be *registered* (see below), so it is opt-in.
+
+### How the hook backend works
 
 The app installs a global low-level keyboard hook (`WH_KEYBOARD_LL`). When
 enabled, a mapped key is swallowed and the corresponding Old Uyghur character is
 injected via `SendInput` with `KEYEVENTF_UNICODE`. This avoids COM/IME/KLC
 registration entirely, so there is nothing to "install" — just run the EXE.
+
+### Enabling the TSF IME
+
+`AncientUyghurTsf.dll` is an in-process COM server implementing the standard TSF
+text-service set (`ITfTextInputProcessor`, `ITfThreadMgrEventSink`,
+`ITfKeyEventSink`, `ITfCompositionSink`) with a class factory and self-
+registration. It self-registers the COM class, a language profile, and the
+keyboard category. Register it (elevated) with:
+
+```powershell
+regsvr32 AncientUyghurTsf.dll        # install; regsvr32 /u to remove
+```
+
+then select **Ancient Uyghur (TSF)** from the Windows language/IME switcher. It
+reads the same `%APPDATA%\AncientUyghurKeyboard\layouts` as the hook backend, so
+layouts authored in the designer work in both. The hook keyboard remains
+available as the automatic fallback and is unchanged by this feature.
 
 ```
 key + modifiers ─▶ Composer (dead keys · compose · ligatures · NFC) ─▶ UTF-16 ─▶ SendInput
