@@ -13,6 +13,22 @@ A tiny, **100% offline** Windows tray application that lets you type in the
   policy — **hot-reloads** on save, no recompile
 - Bundled canonical **normalization** (combining-mark ordering + composition)
 - Portable core with a **unit-test suite** (runs in CI on every push)
+- Optional **graphical Layout Designer** and a native **TSF IME** backend
+
+> **Version 1.0.0.** See the [changelog](CHANGELOG.md) and the
+> [1.0.0 release notes](docs/RELEASE_NOTES_1.0.0.md).
+
+## Documentation
+
+| Doc | What's in it |
+|---|---|
+| [Architecture](docs/ARCHITECTURE.md) | Layered design, the core engine, the three frontends |
+| [API Reference](docs/API_REFERENCE.md) | Public `core` classes and usage |
+| [Developer Guide](docs/DEVELOPER_GUIDE.md) | Build, test, debug, package |
+| [CI & Push](docs/CI_AND_PUSH.md) | Remote setup, CI pipeline, releases |
+| [Roadmap](docs/ROADMAP.md) | What's next |
+| [Release Notes 1.0.0](docs/RELEASE_NOTES_1.0.0.md) | Highlights, migration, known limits |
+| [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) | Project policies |
 
 ---
 

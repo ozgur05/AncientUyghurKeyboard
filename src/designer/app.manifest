@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity type="win32" name="AncientUyghurDesigner"
-                    version="0.4.0.0" processorArchitecture="*"/>
+                    version="1.0.0.0" processorArchitecture="*"/>
 
   <!-- Per-monitor v2 DPI awareness (Win10 1703+). -->
   <application xmlns="urn:schemas-microsoft-com:asm.v3">

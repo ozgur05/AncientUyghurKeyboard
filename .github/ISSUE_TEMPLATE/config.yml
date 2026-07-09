@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/ozgur05/AncientUyghurKeyboard/security/advisories/new
+    about: Please report security issues privately (see SECURITY.md), not as public issues.
+  - name: Support & usage help
+    url: https://github.com/ozgur05/AncientUyghurKeyboard/blob/main/SUPPORT.md
+    about: How to get help and what diagnostics to include.

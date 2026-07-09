@@ -5,13 +5,13 @@
 ; upgrades. User configuration and layouts live in %APPDATA% and are never
 ; touched by (un)install, so settings survive upgrades and removal.
 ;
-; Build:  iscc /DAppVersion=0.4.0 /DSourceDir=..\dist installer\AncientUyghurKeyboard.iss
+; Build:  iscc /DAppVersion=1.0.0 /DSourceDir=..\dist installer\AncientUyghurKeyboard.iss
 ;   AppVersion : version string (defaults below; CI passes the VERSION file).
 ;   SourceDir  : folder containing AncientUyghurKeyboard.exe, layouts\,
 ;                LICENSE, README.md (defaults to ..\dist).
 
 #ifndef AppVersion
-  #define AppVersion "0.4.0"
+  #define AppVersion "1.0.0"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\dist"

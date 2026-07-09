@@ -276,7 +276,6 @@ void DesignerWindow::PaintCanvas(HDC hdc, const RECT& area)
         SelectObject(hdc, m_capFont);
         SetTextColor(hdc, RGB(90, 90, 95));
         RECT lr = { r.left + 4, r.top + 2, r.right - 2, r.top + 18 };
-        DrawTextW(hdc, toW(std::string()).c_str(), 0, &lr, 0); // no-op keep font set
         std::wstring label(c.label.begin(), c.label.end());
         DrawTextW(hdc, label.c_str(), -1, &lr, DT_LEFT | DT_SINGLELINE);
 
