@@ -118,6 +118,9 @@ if(WIN32)
         target_compile_options(AncientUyghurKeyboard PRIVATE $<$<CONFIG:Release>:/Zi>)
         target_link_options(AncientUyghurKeyboard PRIVATE
             $<$<CONFIG:Release>:/DEBUG> $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
+    elseif(MINGW)
+        # The app uses wWinMain; MinGW selects the wide entry point via -municode.
+        target_link_options(AncientUyghurKeyboard PRIVATE -municode)
     endif()
 
     add_custom_command(TARGET AncientUyghurKeyboard POST_BUILD
@@ -141,6 +144,8 @@ if(WIN32)
     auk_buildinfo(AncientUyghurDesigner)
     if(MSVC)
         target_link_options(AncientUyghurDesigner PRIVATE /SUBSYSTEM:WINDOWS)
+    elseif(MINGW)
+        target_link_options(AncientUyghurDesigner PRIVATE -municode)
     endif()
 
     # Put the designer next to the keyboard app so the tray "Layout Designer…"

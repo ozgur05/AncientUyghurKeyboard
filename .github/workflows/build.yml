@@ -20,7 +20,7 @@ jobs:
   # 1. Build (Debug + Release) and run the unit tests on both configurations.
   # ---------------------------------------------------------------------------
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
@@ -44,7 +44,7 @@ jobs:
   # 2. Static-analysis / quality gate (advisory: does not block the build).
   # ---------------------------------------------------------------------------
   quality:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -66,7 +66,7 @@ jobs:
   #    optional signing, and (on tags) a GitHub Release.
   # ---------------------------------------------------------------------------
   package:
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: [ build ]
     steps:
       - name: Checkout
