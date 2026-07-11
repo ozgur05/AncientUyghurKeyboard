@@ -14,6 +14,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Use the static CRT (/MT) on MSVC so the EXE needs no VC++ redistributable.
+# This MUST be set before ANY target is created so every target (auk_core, the
+# executables, tests, bench) uses the SAME CRT — mixing /MD and /MT otherwise
+# causes LNK2005 (multiply defined CRT symbols) when linking auk_core into them.
+# Honored via policy CMP0091 (NEW since CMake 3.15).
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 option(AUK_BUILD_TESTS "Build unit tests" ON)
 option(AUK_BUILD_BENCH "Build the performance benchmark utility" ON)
 option(AUK_WERROR      "Treat compiler warnings as errors" OFF)
@@ -91,9 +100,7 @@ auk_warnings(auk_core)
 # ---------------------------------------------------------------------------
 if(WIN32)
     add_compile_definitions(UNICODE _UNICODE)
-    if(MSVC)
-        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    endif()
+    # (CRT runtime library is set once at the top, before any target.)
 
     add_executable(AncientUyghurKeyboard WIN32
         src/main.cpp
