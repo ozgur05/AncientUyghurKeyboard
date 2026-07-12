@@ -229,6 +229,8 @@ if(AUK_BUILD_BENCH)
     add_executable(auk_bench bench/benchmark.cpp)
     target_link_libraries(auk_bench PRIVATE auk_core)
     if(MSVC)
-        target_compile_options(auk_bench PRIVATE /O2 /utf-8)
+        target_compile_options(auk_bench PRIVATE
+            $<$<CONFIG:Release>:/O2>
+            /utf-8)
     endif()
 endif()
