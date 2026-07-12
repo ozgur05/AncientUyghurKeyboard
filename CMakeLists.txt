@@ -99,7 +99,7 @@ auk_warnings(auk_core)
 # The Windows application (only when targeting Windows)
 # ---------------------------------------------------------------------------
 if(WIN32)
-    add_compile_definitions(UNICODE _UNICODE)
+    add_compile_definitions(UNICODE _UNICODE NOMINMAX)
     # (CRT runtime library is set once at the top, before any target.)
 
     add_executable(AncientUyghurKeyboard WIN32
@@ -121,6 +121,9 @@ if(WIN32)
 
     if(MSVC)
         target_link_options(AncientUyghurKeyboard PRIVATE /SUBSYSTEM:WINDOWS)
+        # resources.rc embeds our own RT_MANIFEST; stop the linker from also
+        # generating one (otherwise CVT1100: duplicate MANIFEST resource).
+        target_link_options(AncientUyghurKeyboard PRIVATE /MANIFEST:NO)
         # Emit a standalone PDB for Release so debug symbols can be shipped.
         target_compile_options(AncientUyghurKeyboard PRIVATE $<$<CONFIG:Release>:/Zi>)
         target_link_options(AncientUyghurKeyboard PRIVATE
@@ -151,6 +154,8 @@ if(WIN32)
     auk_buildinfo(AncientUyghurDesigner)
     if(MSVC)
         target_link_options(AncientUyghurDesigner PRIVATE /SUBSYSTEM:WINDOWS)
+        # designer.rc embeds its own RT_MANIFEST; suppress the linker's.
+        target_link_options(AncientUyghurDesigner PRIVATE /MANIFEST:NO)
     elseif(MINGW)
         target_link_options(AncientUyghurDesigner PRIVATE -municode)
     endif()

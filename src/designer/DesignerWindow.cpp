@@ -247,7 +247,7 @@ void DesignerWindow::PaintCanvas(HDC hdc, const RECT& area)
     double unitsH = KeyCaps::height(m_board);
     int availW = area.right - area.left - 20;
     int availH = area.bottom - area.top - 20;
-    double unit = std::min(availW / unitsW, availH / unitsH);
+    double unit = (std::min)(availW / unitsW, availH / unitsH); // parens: dodge windows.h min macro
     if (unit < 10) unit = 10;
     int ox = area.left + 10;
     int oy = area.top + 10;
@@ -309,7 +309,7 @@ unsigned DesignerWindow::HitTestCanvas(int px, int py) const
     double unitsH = KeyCaps::height(m_board);
     int availW = area.right - area.left - 20;
     int availH = area.bottom - area.top - 20;
-    double unit = std::min(availW / unitsW, availH / unitsH);
+    double unit = (std::min)(availW / unitsW, availH / unitsH); // parens: dodge windows.h min macro
     if (unit < 10) unit = 10;
     int ox = area.left + 10, oy = area.top + 10;
 

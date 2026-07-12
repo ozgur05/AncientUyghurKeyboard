@@ -31,4 +31,4 @@ BEGIN
 END
 
 // Reuse the main app's manifest (DPI awareness + common controls v6).
-CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
+CREATEPROCESS_MANIFEST_RESOURCE RT_MANIFEST "app.manifest"

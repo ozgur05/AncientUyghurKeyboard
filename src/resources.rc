@@ -42,4 +42,4 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 // Manifest — DPI awareness + modern common controls, Win10/11 compatibility.
-CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
+CREATEPROCESS_MANIFEST_RESOURCE RT_MANIFEST "app.manifest"
