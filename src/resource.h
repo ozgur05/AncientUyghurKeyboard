@@ -2,4 +2,3 @@
 #pragma once
 
 #define IDI_APPICON 101
-#define CREATEPROCESS_MANIFEST_RESOURCE 1

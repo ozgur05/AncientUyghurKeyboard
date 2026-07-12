@@ -1,10 +1,6 @@
 // tsf.rc — version info for the TSF text-service DLL.
 #include <windows.h>
 #include "../AppVersion.hpp"
-#include "resource.h"
-
-// Reuse the main app's manifest (DPI awareness + common controls v6).
-CREATEPROCESS_MANIFEST_RESOURCE RT_MANIFEST "app.manifest"
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION    AUK_VER_MAJOR,AUK_VER_MINOR,AUK_VER_PATCH,0
