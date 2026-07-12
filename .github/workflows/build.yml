@@ -102,6 +102,24 @@ jobs:
             Copy-Item build\Release\AncientUyghurKeyboard.pdb dist\
           }
 
+      - name: Stage Windows bundle
+        shell: pwsh
+        run: |
+          $windowsBundle = "windowsBundle"
+          New-Item -ItemType Directory -Force -Path $windowsBundle | Out-Null
+          Copy-Item build\Release\AncientUyghurKeyboard.exe $windowsBundle\
+          Copy-Item build\Release\AncientUyghurDesigner.exe $windowsBundle\
+          if (Test-Path build\Release\AncientUyghurTsf.dll) {
+            Copy-Item build\Release\AncientUyghurTsf.dll $windowsBundle\
+          }
+          Copy-Item -Recurse layouts $windowsBundle\layouts
+          Copy-Item LICENSE $windowsBundle\LICENSE
+          Copy-Item README.md $windowsBundle\README.md
+          if (Test-Path build\Release\AncientUyghurKeyboard.pdb) {
+            Copy-Item build\Release\AncientUyghurKeyboard.pdb $windowsBundle\
+          }
+          Compress-Archive -Path "$windowsBundle\*" -DestinationPath "AncientUyghurKeyboard-Windows.zip" -Force
+
       - name: Build portable ZIP
         shell: pwsh
         run: |
@@ -195,6 +213,7 @@ jobs:
             SHA256SUMS.txt
             ReleaseNotes.md
             dist/AncientUyghurKeyboard.pdb
+            AncientUyghurKeyboard-Windows.zip
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
@@ -206,3 +225,4 @@ jobs:
             AncientUyghurKeyboard_Portable.zip
             AncientUyghurKeyboard_Source.zip
             SHA256SUMS.txt
+            AncientUyghurKeyboard-Windows.zip
