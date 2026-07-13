@@ -407,9 +407,15 @@ on the first CI run.
 
 ## Font note
 
-To *see* the glyphs you must have an Old Uyghur–capable font installed (e.g.
-**Noto Sans Old Uyghur**). The app produces correct Unicode regardless of the
-font present; rendering is up to the target application.
+The version of **Noto Serif Old Uyghur** currently available from Google Fonts contains rendering issues and is not recommended for use with this keyboard.
+
+Before using this keyboard, please remove any existing installation of **Noto Serif Old Uyghur** from your computer.
+
+Then install the corrected version of the font, which is available here:
+
+https://disk.yandex.ru/d/oK97wGj0Zazw3Q
+
+For the best typing and rendering experience, it is recommended to use **LibreOffice** with the corrected font installed.
 
 ---
 
