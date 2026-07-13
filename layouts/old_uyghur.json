@@ -26,11 +26,11 @@
   "keys": {
     // ---- Letters (U+10F70..U+10F81), phonetic positions ----
     "A": { "base": "U+10F70" },
-    "E": { "base": "U+10F70" },
-    "B": { "base": "U+10F71" },
+    "E": { "base": "U+10F76" },
+    "B": { "base": "U+10F7C" },
     "V": { "base": "U+10F71" },
     "G": { "base": "U+10F72" },
-    "W": { "base": "U+10F73" },
+    "W": { "base": "U+10F71" },
     "O": { "base": "U+10F73" },
     "U": { "base": "U+10F73" },
     "Z": { "base": "U+10F74" },
@@ -38,19 +38,19 @@
     "I": { "base": "U+10F76" },
     "Y": { "base": "U+10F76" },
     "K": { "base": "U+10F77" },
-    "Q": { "base": "U+10F77" },
-    "L": { "base": "U+10F78", "shift": "U+10F81" },
+    "Q": { "base": "U+10F72" },
+    "L": { "base": "U+10F81" },
     "M": { "base": "U+10F79" },
     "N": { "base": "U+10F7A" },
-    "S": { "base": "U+10F7B", "shift": "U+10F7F" },
+    "S": { "base": "U+10F7B" },
     "P": { "base": "U+10F7C" },
     "F": { "base": "U+10F7C" },
     "C": { "base": "U+10F7D" },
-    "J": { "base": "U+10F7D" },
+    "J": { "base": "U+10F89" },
     "R": { "base": "U+10F7E" },
     "X": { "base": "U+10F7F" },
     "T": { "base": "U+10F80" },
-    "D": { "base": "U+10F80" },
+    "D": { "base": "U+10F78" },
 
     // ---- Numbers (pass Latin digits through unchanged) ----
     "0": { "base": "0" }, "1": { "base": "1" }, "2": { "base": "2" },
@@ -59,8 +59,8 @@
     "9": { "base": "9" },
 
     // ---- Combining marks on bracket keys (base / shift) ----
-    "OEM_4": { "base": "U+10F82", "shift": "U+10F84" },
-    "OEM_6": { "base": "U+10F83", "shift": "U+10F85" },
+    "OEM_4": { "base": "U+10F83", "shift": "U+10F82" },
+    "OEM_6": { "base": "U+10F85", "shift": "U+10F83" },
 
     // ---- Old Uyghur punctuation ----
     "OEM_5": { "base": "U+10F86", "shift": "U+10F87" },
@@ -69,9 +69,9 @@
     // ---- Common ASCII punctuation (pass through, with Shift variants) ----
     "OEM_MINUS":  { "base": "-", "shift": "_" },
     "OEM_PLUS":   { "base": "=", "shift": "+" },
-    "OEM_COMMA":  { "base": ",", "shift": "<" },
-    "OEM_PERIOD": { "base": ".", "shift": ">" },
-    "OEM_7":      { "base": "'", "shift": "\"" },
+    "OEM_COMMA":  { "base": "U+10F82", "shift": "<" },
+    "OEM_PERIOD": { "base": "U+10F84", "shift": ">" },
+    "OEM_7":      { "base": "U+10F87", "shift": "\"" },
 
     // ---- AltGr demo: AltGr+/ starts a compose sequence ----
     "OEM_2": { "base": "/", "shift": "?", "altgr": { "compose": true } },
