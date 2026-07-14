@@ -407,15 +407,17 @@ on the first CI run.
 
 ## Font note
 
-The version of **Noto Serif Old Uyghur** currently available from Google Fonts contains rendering issues and is not recommended for use with this keyboard.
+The corrected version of **Noto Serif Old Uyghur** is already included in this repository.
 
-Before using this keyboard, please remove any existing installation of **Noto Serif Old Uyghur** from your computer.
+Users do not need to download the font from Yandex Disk or any other external source.
 
-Then install the corrected version of the font, which is available here:
+Before installing the included font, users should uninstall any previously installed version of **Noto Serif Old Uyghur** to avoid conflicts.
 
-https://disk.yandex.ru/d/oK97wGj0Zazw3Q
+The font can be found in:
 
-For the best typing and rendering experience, it is recommended to use **LibreOffice** with the corrected font installed.
+  fonts/NotoSerifOldUyghur-Regular.ttf
+
+For the best typing and rendering experience, LibreOffice is recommended.
 
 ---
 
