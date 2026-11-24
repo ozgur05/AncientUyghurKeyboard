@@ -1,8 +1,9 @@
 {
-  // Ancient (Old) Uyghur keyboard layout — COMPLETE edition.
-  // Unicode block: Old Uyghur, U+10F70..U+10F89 (18 letters, 4 combining
-  // marks, 4 punctuation marks). Plus essential text-shaping characters
-  // (ZWJ, ZWNJ, Tatweel, Manichaean punctuation) on AltGr layer.
+  // Ancient (Old) Uyghur keyboard layout – COMPLETE edition (v1.1.1).
+  // Unicode coverage: Old Uyghur (U+10F70..U+10F89: 18 letters, 4 combining
+  // marks, 4 punctuation marks) + Manichaean Double Dot Within Dot (U+10AF2)
+  // + shaping/layout controls (ZWJ U+200D, ZWNJ U+200C, Tatweel U+0640,
+  // Dotted Circle U+25CC) for 100% QochoOldUyghur-Regular v1.000 parity.
   //
   // This file hot-reloads: edit and save, and the running app applies it.
   // Codepoints may be written "U+XXXX", "0xXXXX", a decimal number, or as
@@ -12,9 +13,9 @@
     "id": "old_uyghur",
     "name": "Old Uyghur (Phonetic Complete)",
     "language": "oui",
-    "description": "Complete phonetic Old Uyghur layout: all 26 codepoints + ZWJ/ZWNJ/Tatweel on AltGr",
+    "description": "Complete phonetic Old Uyghur layout: all 26 Old Uyghur codepoints + U+10AF2, ZWJ, ZWNJ, Tatweel, and Dotted Circle",
     "author": "KutadguBilim",
-    "version": 5
+    "version": 6
   },
 
   "behavior": {
@@ -27,26 +28,27 @@
   "keys": {
     // ==== Letters (U+10F70..U+10F81), phonetic positions ====
     //
-    // Letter name          Codepoint   Key    Shift
-    // ───────────────────  ─────────   ───    ─────
-    // ALEPH                U+10F70     A
-    // BETH                 U+10F71     V / W
-    // GIMEL-HETH           U+10F72     G / Q
-    // WAW                  U+10F73     O / U
-    // ZAYIN                U+10F74     Z
-    // FINAL HETH           U+10F75     H
-    // YODH                 U+10F76     Y / I / E
-    // KAPH                 U+10F77     K
-    // LAMEDH               U+10F78     D
-    // MEM                  U+10F79     M
-    // NUN                  U+10F7A     N
-    // SAMEKH               U+10F7B     S
-    // PE                   U+10F7C     P / B / F
-    // SADHE                U+10F7D     C
-    // RESH                 U+10F7E     R
-    // SHIN                 U+10F7F     X
-    // TAW                  U+10F80     T
-    // LESH                 U+10F81     L
+    // Letter name        Codepoint   Key    Shift     AltGr
+    // ─────────────────  ─────────   ─────  ────────  ─────────────────────────────
+    // ALEPH              U+10F70     A
+    // BETH               U+10F71     V / W
+    // GIMEL-HETH         U+10F72     G / Q
+    // WAW                U+10F73     O / U
+    // ZAYIN              U+10F74     Z
+    // FINAL HETH         U+10F75     H
+    // YODH               U+10F76     Y / I / E
+    // KAPH               U+10F77     K
+    // LAMEDH             U+10F78     D
+    // MEM                U+10F79     M                U+10AF2 (Manichaean Double Dot)
+    // NUN                U+10F7A     N                U+200C  (ZWNJ)
+    // SAMEKH             U+10F7B     S      U+10F7F
+    // PE                 U+10F7C     P / B / F
+    // SADHE              U+10F7D     C
+    // RESH               U+10F7E     R
+    // SHIN               U+10F7F     X
+    // TAW                U+10F80     T                U+0640  (Tatweel / Kashida)
+    // LESH               U+10F81     L
+    // FOUR DOTS          U+10F89     J                U+200D  (ZWJ)
 
     "A": { "base": "U+10F70" },
     "V": { "base": "U+10F71" },
@@ -62,8 +64,8 @@
     "Y": { "base": "U+10F76" },
     "K": { "base": "U+10F77" },
     "D": { "base": "U+10F78" },
-    "M": { "base": "U+10F79" },
-    "N": { "base": "U+10F7A" },
+    "M": { "base": "U+10F79", "altgr": "U+10AF2" },
+    "N": { "base": "U+10F7A", "altgr": "U+200C" },
     "S": { "base": "U+10F7B", "shift": "U+10F7F" },
     "P": { "base": "U+10F7C" },
     "B": { "base": "U+10F7C" },
@@ -71,9 +73,9 @@
     "C": { "base": "U+10F7D" },
     "R": { "base": "U+10F7E" },
     "X": { "base": "U+10F7F" },
-    "T": { "base": "U+10F80" },
+    "T": { "base": "U+10F80", "altgr": "U+0640" },
     "L": { "base": "U+10F81" },
-    "J": { "base": "U+10F89" },
+    "J": { "base": "U+10F89", "altgr": "U+200D" },
 
     // ==== Numbers (pass Latin digits through unchanged) ====
     "0": { "base": "0" }, "1": { "base": "1" }, "2": { "base": "2" },
@@ -81,52 +83,39 @@
     "6": { "base": "6" }, "7": { "base": "7" }, "8": { "base": "8" },
     "9": { "base": "9" },
 
-    // ==== Combining marks (base / shift on bracket keys) ====
-    //   [ = DOT ABOVE (U+10F82)      Shift+[ = TWO DOTS ABOVE (U+10F84)
-    //   ] = DOT BELOW (U+10F83)      Shift+] = TWO DOTS BELOW (U+10F85)
-    "OEM_4": { "base": "U+10F82", "shift": "U+10F84" },
+    // ==== Combining marks (base / shift on bracket keys; AltGr+[ = Dotted Circle) ====
+    //   [  = DOT ABOVE (U+10F82)     Shift+[ = TWO DOTS ABOVE (U+10F84)   AltGr+[ = DOTTED CIRCLE (U+25CC)
+    //   ]  = DOT BELOW (U+10F83)     Shift+] = TWO DOTS BELOW (U+10F85)
+    "OEM_4": { "base": "U+10F82", "shift": "U+10F84", "altgr": "U+25CC" },
     "OEM_6": { "base": "U+10F83", "shift": "U+10F85" },
 
-    // ==== Old Uyghur punctuation ====
-    //   \ = BAR (U+10F86)            Shift+\ = TWO BARS (U+10F87)
-    //   ; = TWO DOTS (U+10F88)       Shift+; = FOUR DOTS (U+10F89)
-    "OEM_5": { "base": "U+10F86", "shift": "U+10F87" },
-    "OEM_1": { "base": "U+10F88", "shift": "U+10F89" },
+    // ==== Old Uyghur & Manichaean punctuation ====
+    //   \  = BAR (U+10F86)           Shift+\ = TWO BARS (U+10F87)         AltGr+\ = TATWEEL (U+0640)
+    //   ;  = TWO DOTS (U+10F88)      Shift+; = FOUR DOTS (U+10F89)        AltGr+; = MANICHAEAN DOUBLE DOT (U+10AF2)
+    "OEM_5": { "base": "U+10F86", "shift": "U+10F87", "altgr": "U+0640" },
+    "OEM_1": { "base": "U+10F88", "shift": "U+10F89", "altgr": "U+10AF2" },
 
-    // ==== Text-shaping characters (CRITICAL for correct rendering) ====
-    //
-    // These characters are essential for Old Uyghur text to render
-    // correctly with OpenType shaping. The font has 109 glyphs including
-    // positional forms (.init, .medi, .fina) and ligatures that are
-    // triggered by these joining control characters.
-    //
-    //   ,       = DOT ABOVE (U+10F82)   combining mark (easy access)
-    //   .       = TWO DOTS ABOVE (U+10F84) combining mark (easy access)
-    //   '       = TWO BARS punctuation
-    //   AltGr+J = ZERO WIDTH JOINER (U+200D) — forces joining between letters
-    //   AltGr+N = ZERO WIDTH NON-JOINER (U+200C) — breaks joining between letters
-    //   AltGr+T = ARABIC TATWEEL (U+0640) — kashida/elongation mark
-    //   AltGr+M = MANICHAEAN PUNCTUATION (U+10AF2)
-    //   AltGr+Space = NO-BREAK SPACE (U+00A0)
-    //
+    // ==== Quick combining marks & shaping controls ====
+    //   ,        = DOT ABOVE (U+10F82)
+    //   .        = TWO DOTS ABOVE (U+10F84)
+    //   '        = TWO BARS (U+10F87)
+    //   AltGr+-  = ZERO WIDTH NON-JOINER (U+200C) (also AltGr+N)
+    //   AltGr+=  = ZERO WIDTH JOINER (U+200D)     (also AltGr+J)
+    //   AltGr+\  = ARABIC TATWEEL (U+0640)        (also AltGr+T, or AltGr+/ then T)
+    //   AltGr+;  = MANICHAEAN DOUBLE DOT (U+10AF2)(also AltGr+M, or AltGr+/ then M then M)
+    //   AltGr+[  = DOTTED CIRCLE (U+25CC)         (also AltGr+/ then ;)
+    //   AltGr+/  = COMPOSE trigger
     "OEM_COMMA":  { "base": "U+10F82", "shift": "<" },
     "OEM_PERIOD": { "base": "U+10F84", "shift": ">" },
     "OEM_7":      { "base": "U+10F87", "shift": "\"" },
 
-    // AltGr layer: text-shaping controls
-    "OEM_2": { "base": "/", "shift": "?", "altgr": { "compose": true } },
-    "OEM_MINUS":  { "base": "-", "shift": "_", "altgr": "U+200C" },
-    "OEM_PLUS":   { "base": "=", "shift": "+", "altgr": "U+200D" },
+    // AltGr layer: shaping controls & compose trigger (single unique OEM_2 entry)
+    "OEM_2":     { "base": "/", "shift": "?", "altgr": { "compose": true } },
+    "OEM_MINUS": { "base": "-", "shift": "_", "altgr": "U+200C" },
+    "OEM_PLUS":  { "base": "=", "shift": "+", "altgr": "U+200D" },
 
-    // AltGr on letter keys for shaping controls
-    // AltGr+J = ZWJ (force join)
-    // AltGr+N = ZWNJ (break join)
-    // AltGr+T = Tatweel (kashida)
-    // AltGr+M = Manichaean punctuation
-    // AltGr+Space = No-break space
-
-    // ---- A dead key on the backtick key ----
-    // Backtick starts the "dots" dead key; the next letter gets dots above.
+    // ---- Dead keys on the backtick key ----
+    // Backtick starts "dots_above" (U+10F84); Shift+Backtick starts "dots_below" (U+10F85).
     "OEM_3": { "base": { "dead": "dots_above" }, "shift": { "dead": "dots_below" } }
   },
 
@@ -136,7 +125,6 @@
       // If followed by Space or an unmapped key, emit the combining mark alone.
       "standalone": "U+10F84",
       "compose": {
-        // letter -> letter + COMBINING TWO DOTS ABOVE
         "U+10F70": ["U+10F70", "U+10F84"],
         "U+10F71": ["U+10F71", "U+10F84"],
         "U+10F72": ["U+10F72", "U+10F84"],
@@ -190,32 +178,32 @@
     }
   ],
 
-  // ==== Compose sequences (AltGr+/, then type the keys) ====
-  // AltGr+/ then key combinations for shaping controls:
+  // ==== Compose sequences (AltGr+/, then type the keys; prefix-collision free) ====
   "compose_sequences": [
     { "keys": ["U+10F70", "U+10F76"], "output": ["U+10F70", "U+10F84"] },
 
-    // Compose for ZWJ: AltGr+/ then J
+    // Shaping & auxiliary characters (no prefix overlap with 2-key ligatures)
+    // AltGr+/ then J → ZWJ (U+200D)
     { "keys": ["U+10F89"], "output": ["U+200D"] },
-    // Compose for ZWNJ: AltGr+/ then N
+    // AltGr+/ then N → ZWNJ (U+200C)
     { "keys": ["U+10F7A"], "output": ["U+200C"] },
-    // Compose for Tatweel: AltGr+/ then T
+    // AltGr+/ then T → Tatweel (U+0640)
     { "keys": ["U+10F80"], "output": ["U+0640"] },
-    // Compose for Manichaean punct: AltGr+/ then M
-    { "keys": ["U+10F79"], "output": ["U+10AF2"] },
+    // AltGr+/ then ; → Dotted Circle (U+25CC)
+    { "keys": ["U+10F88"], "output": ["U+25CC"] },
+    // AltGr+/ then M then M → Manichaean Double Dot (U+10AF2) (2-key avoids colliding with M+L)
+    { "keys": ["U+10F79", "U+10F79"], "output": ["U+10AF2"] },
 
     // ---- Ligature-pair shortcuts (AltGr+/ then two keys) ----
-    // These output codepoint pairs that trigger OpenType rlig/ccmp ligatures.
-    //
-    // AltGr+/ then K then L  →  Kaph + Lesh ligature
+    // AltGr+/ then K then L → Kaph + Lesh ligature
     { "keys": ["U+10F77", "U+10F81"], "output": ["U+10F77", "U+10F81"] },
-    // AltGr+/ then K then O  →  Kaph + Waw ligature
+    // AltGr+/ then K then O → Kaph + Waw ligature
     { "keys": ["U+10F77", "U+10F73"], "output": ["U+10F77", "U+10F73"] },
-    // AltGr+/ then M then L  →  Mem + Lesh ligature
+    // AltGr+/ then M then L → Mem + Lesh ligature
     { "keys": ["U+10F79", "U+10F81"], "output": ["U+10F79", "U+10F81"] },
-    // AltGr+/ then P then L  →  Pe + Lesh ligature
+    // AltGr+/ then P then L → Pe + Lesh ligature
     { "keys": ["U+10F7C", "U+10F81"], "output": ["U+10F7C", "U+10F81"] },
-    // AltGr+/ then P then O  →  Pe + Waw ligature
+    // AltGr+/ then P then O → Pe + Waw ligature
     { "keys": ["U+10F7C", "U+10F73"], "output": ["U+10F7C", "U+10F73"] }
   ]
 }

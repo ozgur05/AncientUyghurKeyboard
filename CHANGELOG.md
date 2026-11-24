@@ -4,6 +4,37 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] — 2026-11-25
+
+### Fixed
+- **Duplicate `"OEM_2"` key** in `old_uyghur_qwerty.json` — JSON parsing silently
+  dropped the first `"OEM_2"` entry (`altgr: "U+0640"`), so Tatweel was
+  unreachable. Merged into a single entry with `altgr: { "compose": true }`;
+  Tatweel is now on `AltGr+\` and via compose (`AltGr+/` → `J`).
+- **Misleading comments** in `old_uyghur.json` — corrected references to
+  `AltGr+M` and `AltGr+/` for Tatweel/Manichaean to reflect actual compose
+  sequences.
+- **Compose prefix collision** — Manichaean Double Dot (`U+10AF2`) compose
+  changed from single-key `M` (`U+10F79`) to two-key `M M` to avoid ambiguity
+  with the `M+L` (Mem+Lesh) ligature compose sequence.
+
+### Added
+- **Dotted Circle (`U+25CC`)** on `AltGr+[` and via compose (`AltGr+/` → `;`)
+  in both layouts — for typing standalone combining diacritics.
+- **Direct `AltGr` mappings** in both layouts: `AltGr+\` → Tatweel (`U+0640`),
+  `AltGr+;` → Manichaean Double Dot (`U+10AF2`), `AltGr+[` → Dotted Circle
+  (`U+25CC`), `AltGr+T` → Tatweel, `AltGr+M` → Manichaean, `AltGr+J` → ZWJ,
+  `AltGr+N` → ZWNJ (phonetic layout only).
+- **ZWNJ/ZWJ compose fallbacks** in QWERTY layout: `AltGr+/` → `A` → ZWNJ,
+  `AltGr+/` → `Shift+;` → ZWJ.
+- Full dead-key coverage for all 18 letters in both `dots_above` and
+  `dots_below` dead keys in `old_uyghur_qwerty.json` (was only 6 letters).
+
+### Changed
+- Phonetic layout bumped from v5 to v6; QWERTY layout from v2 to v3.
+- Both layouts now have **100% parity** with each other and full coverage of
+  QochoOldUyghur-Regular v1.000 (31 typable codepoints).
+
 ## [1.1.0] — 2026-11-24
 
 ### Added
@@ -72,5 +103,6 @@ an optional native TSF IME. No Python/.NET/Java or external runtime.
 - The Layout Designer GUI and the TSF DLL are compile/link-verified; their
   interactive/registered runtime behavior should be validated on target Windows.
 
+[1.1.1]: https://github.com/ozgur05/AncientUyghurKeyboard/releases/tag/v1.1.1
 [1.1.0]: https://github.com/ozgur05/AncientUyghurKeyboard/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ozgur05/AncientUyghurKeyboard/releases/tag/v1.0.0
