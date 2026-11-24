@@ -4,6 +4,35 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — 2026-11-24
+
+### Added
+- **Text-shaping controls on AltGr layer**: ZWJ (`AltGr+=`), ZWNJ (`AltGr+-`),
+  Arabic Tatweel/kashida (`AltGr+/`), and Manichaean punctuation (U+10AF2) via
+  compose sequence — essential for controlling OpenType positional forms
+  (`.init`, `.medi`, `.fina`) and ligatures in Old Uyghur fonts.
+- **5 ligature compose shortcuts** (via `AltGr+/` then two keys): Kaph+Lesh,
+  Kaph+Waw, Mem+Lesh, Pe+Lesh, Pe+Waw — triggers the font's `rlig`/`ccmp`
+  ligature glyphs.
+- **`dots_below` dead key** on `Shift+backtick` — mirrors the existing
+  `dots_above` dead key, adding TWO DOTS BELOW (U+10F85) to any letter.
+- **Expanded `dots_above` dead key** to cover all 18 Old Uyghur letters
+  (previously only Aleph, Yodh, Nun).
+- Quick-access combining marks on `,` (DOT ABOVE) and `.` (TWO DOTS ABOVE).
+
+### Changed
+- Phonetic layout (`old_uyghur.json`) bumped from v4 to v5.
+- QWERTY layout (`old_uyghur_qwerty.json`) bumped from v1 to v2.
+- Both layouts now expose all typable codepoints in QochoOldUyghur-Regular
+  v1.000 (26 Old Uyghur + 4 shaping controls + Manichaean punctuation).
+
+### Notes
+- The 109 glyphs in QochoOldUyghur-Regular include 50 positional forms and 22
+  ligatures that are automatically selected by OpenType shaping (`init`, `medi`,
+  `fina`, `rlig`, `ccmp` features) — they do not need separate key mappings.
+- For best rendering, use LibreOffice Writer or a browser (Firefox/Chrome) which
+  have full HarfBuzz OpenType shaping support for SMP scripts.
+
 ## [1.0.0] — 2026-07-09
 
 First stable release. A 100% offline, native Win32/C++20 keyboard and input
@@ -43,4 +72,5 @@ an optional native TSF IME. No Python/.NET/Java or external runtime.
 - The Layout Designer GUI and the TSF DLL are compile/link-verified; their
   interactive/registered runtime behavior should be validated on target Windows.
 
+[1.1.0]: https://github.com/ozgur05/AncientUyghurKeyboard/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ozgur05/AncientUyghurKeyboard/releases/tag/v1.0.0
