@@ -2,8 +2,8 @@
 //
 // Uses the pure core::Migration plans to perform the side effects:
 //   * recreate missing data directories (data root + layouts subdir),
-//   * seed bundled layouts that are absent from the user layouts dir
-//     (never overwriting a user's file),
+//   * seed missing bundled layouts and upgrade outdated ones whose meta.version
+//     is lower than the bundled copy (saving a .bak backup first),
 //   * migrate config.ini in place (preserving user + unknown keys).
 // All operations are idempotent and safe to run on every launch.
 #pragma once
@@ -28,7 +28,8 @@ public:
     // Recreate the data root and layouts directory if missing. Returns count.
     static int EnsureDirectories(const Paths& paths);
 
-    // Copy bundled layouts missing from the user dir. Returns count copied.
+    // Copy missing bundled layouts and upgrade outdated user layouts (backing up
+    // to <id>.json.bak). Returns count copied or upgraded.
     static int SeedLayouts(const Paths& paths);
 
     // Load, migrate, and rewrite config.ini. Returns 1 if rewritten, else 0.

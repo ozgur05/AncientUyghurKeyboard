@@ -4,6 +4,36 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.3] — 2026-11-27
+
+### Fixed
+- **AltGr key detection** — Right Alt alone now works as AltGr on US English
+  (and other layouts without a dedicated AltGr key). Previously, only the
+  `Ctrl+RightAlt` combination was recognised, so pressing Right Alt on a
+  standard US keyboard did nothing. Both `KeyboardEngine` (hook backend) and
+  `TextService` (TSF IME) are fixed with the same logic:
+  `altgr = rAlt || (ctrl && lAlt)`.
+- **SendInput modifier swallowing** — Applications like LibreOffice Writer
+  ignored injected `KEYEVENTF_UNICODE` characters when `Ctrl`/`Alt` modifiers
+  were physically held down (they were misinterpreted as shortcut combos). The
+  `SendEdits()` method now temporarily releases any held `VK_LCONTROL`,
+  `VK_RCONTROL`, `VK_LMENU`, `VK_RMENU` before injecting characters, then
+  re-presses them so holding Right Alt and typing repeatedly keeps working.
+- **Stale `%APPDATA%` layouts after upgrade** — `AutoMigration::SeedLayouts()`
+  previously used `fs::copy_options::skip_existing`, so upgrading from v1.0.0
+  left old layout files (without AltGr mappings) in place. The seeder now
+  compares `meta.version` from both the bundled and user layout JSON files; when
+  the bundled version is strictly greater, the user file is backed up to
+  `<id>.json.bak` and replaced with the newer bundled version.
+
+### Added
+- `core::Migration::planLayoutUpgrade()` — pure function that returns layout ids
+  whose bundled `meta.version` exceeds the user's installed version.
+- 3 new unit tests for version-aware layout upgrade planning:
+  `Migration_LayoutUpgrade_NewerBundledUpgrades`,
+  `Migration_LayoutUpgrade_EqualOrHigherUserPreserved`,
+  `Migration_LayoutUpgrade_MissingUserNotUpgraded`.
+
 ## [1.1.1] — 2026-11-25
 
 ### Fixed
@@ -103,6 +133,7 @@ an optional native TSF IME. No Python/.NET/Java or external runtime.
 - The Layout Designer GUI and the TSF DLL are compile/link-verified; their
   interactive/registered runtime behavior should be validated on target Windows.
 
+[1.1.3]: https://github.com/ozgur05/AncientUyghurKeyboard/releases/tag/v1.1.3
 [1.1.1]: https://github.com/ozgur05/AncientUyghurKeyboard/releases/tag/v1.1.1
 [1.1.0]: https://github.com/ozgur05/AncientUyghurKeyboard/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ozgur05/AncientUyghurKeyboard/releases/tag/v1.0.0

@@ -112,12 +112,12 @@ bool KeyboardEngine::HandleKeyDown(const KBDLLHOOKSTRUCT& info)
     const bool win   = down(VK_LWIN) || down(VK_RWIN);
     const bool caps  = (GetKeyState(VK_CAPITAL) & 1) != 0;
 
-    // AltGr == Ctrl+RightAlt. Distinguish it from real Ctrl/Alt shortcuts.
-    const bool altgr = rAlt && ctrl;
+    // Treat Right Alt alone (for US QWERTY Windows users) OR Ctrl+LeftAlt as AltGr.
+    const bool altgr = rAlt || (ctrl && lAlt);
 
-    // Let genuine shortcuts (Ctrl+_, Alt+_, Win+_) pass straight through.
+    // Let genuine shortcuts (Win+_, LeftAlt+_, Ctrl+_) pass straight through.
     if (win) { m_composer.reset(); return false; }
-    if (lAlt) { m_composer.reset(); return false; }
+    if (lAlt && !altgr) { m_composer.reset(); return false; }
     if (ctrl && !altgr) { m_composer.reset(); return false; }
 
     core::KeyInput in;
@@ -135,7 +135,27 @@ bool KeyboardEngine::HandleKeyDown(const KBDLLHOOKSTRUCT& info)
 void KeyboardEngine::SendEdits(const core::EmitOp& op)
 {
     std::vector<INPUT> inputs;
-    inputs.reserve(static_cast<size_t>(op.backspaces) * 2 + op.insert.size() * 2);
+    inputs.reserve(static_cast<size_t>(op.backspaces) * 2 + op.insert.size() * 2 + 8);
+
+    // --- Temporarily release held Ctrl/Alt modifiers so apps like LibreOffice
+    //     don't misinterpret the injected Unicode chars as shortcut combos. ---
+    struct HeldMod { int vk; DWORD flags; };
+    HeldMod modifiers[] = {
+        { VK_LCONTROL, 0 },
+        { VK_RCONTROL, KEYEVENTF_EXTENDEDKEY },
+        { VK_LMENU,    0 },
+        { VK_RMENU,    KEYEVENTF_EXTENDEDKEY },
+    };
+    std::vector<HeldMod> heldMods;
+    for (const auto& mod : modifiers) {
+        if ((GetAsyncKeyState(mod.vk) & 0x8000) != 0) {
+            heldMods.push_back(mod);
+            INPUT up{}; up.type = INPUT_KEYBOARD;
+            up.ki.wVk = static_cast<WORD>(mod.vk);
+            up.ki.dwFlags = KEYEVENTF_KEYUP | mod.flags;
+            inputs.push_back(up);
+        }
+    }
 
     // Backspaces first (delete the stale tail during reconciliation).
     for (int i = 0; i < op.backspaces; ++i) {
@@ -153,6 +173,14 @@ void KeyboardEngine::SendEdits(const core::EmitOp& op)
         INPUT u{}; u.type = INPUT_KEYBOARD; u.ki.wScan = ch;
         u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
         inputs.push_back(u);
+    }
+
+    // --- Re-press any modifiers we released so holding Right Alt keeps working. ---
+    for (const auto& mod : heldMods) {
+        INPUT dn{}; dn.type = INPUT_KEYBOARD;
+        dn.ki.wVk = static_cast<WORD>(mod.vk);
+        dn.ki.dwFlags = mod.flags;
+        inputs.push_back(dn);
     }
 
     if (!inputs.empty()) {

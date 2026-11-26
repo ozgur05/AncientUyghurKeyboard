@@ -35,6 +35,13 @@ public:
     static std::vector<std::string> planLayoutSeed(
         const std::vector<std::string>& bundled,
         const std::vector<std::string>& existing);
+
+    // Given the bundled layout ids with their meta.version and the user layout
+    // ids with their meta.version, return the ids whose bundled version is
+    // strictly greater than the user's version (needs upgrade).
+    static std::vector<std::string> planLayoutUpgrade(
+        const std::map<std::string, int>& bundledVersions,
+        const std::map<std::string, int>& userVersions);
 };
 
 } // namespace core

@@ -11,8 +11,8 @@
 #pragma once
 
 #define AUK_VER_MAJOR 1
-#define AUK_VER_MINOR 0
-#define AUK_VER_PATCH 0
+#define AUK_VER_MINOR 1
+#define AUK_VER_PATCH 3
 
 // String form, e.g. "1.0.0". Must match the numeric triple above.
-#define AUK_APP_VERSION_STR "1.0.0"
+#define AUK_APP_VERSION_STR "1.1.3"

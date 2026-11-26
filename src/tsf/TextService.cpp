@@ -165,8 +165,9 @@ bool CTextService::HandleKeyDown(ITfContext* pic, WPARAM wParam, bool apply)
     const bool lAlt  = down(VK_LMENU);
     const bool rAlt  = down(VK_RMENU);
     const bool win   = down(VK_LWIN) || down(VK_RWIN);
-    const bool altgr = rAlt && ctrl;
-    if (win || lAlt || (ctrl && !altgr))
+    // Treat Right Alt alone (for US QWERTY) OR Ctrl+LeftAlt as AltGr.
+    const bool altgr = rAlt || (ctrl && lAlt);
+    if (win || (lAlt && !altgr) || (ctrl && !altgr))
         return false; // let real shortcuts through
 
     // Prediction path (OnTestKeyDown): decide without mutating state/document.

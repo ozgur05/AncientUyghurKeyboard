@@ -53,4 +53,17 @@ std::vector<std::string> Migration::planLayoutSeed(
     return toCopy;
 }
 
+std::vector<std::string> Migration::planLayoutUpgrade(
+    const std::map<std::string, int>& bundledVersions,
+    const std::map<std::string, int>& userVersions)
+{
+    std::vector<std::string> toUpgrade;
+    for (const auto& [id, bundledVer] : bundledVersions) {
+        auto it = userVersions.find(id);
+        if (it != userVersions.end() && bundledVer > it->second)
+            toUpgrade.push_back(id);
+    }
+    return toUpgrade;
+}
+
 } // namespace core

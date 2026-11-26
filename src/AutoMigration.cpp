@@ -1,10 +1,12 @@
 #include "AutoMigration.h"
 #include "Logger.h"
 #include "core/Migration.hpp"
+#include "core/LayoutParser.hpp"
 
 #include <windows.h>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <sstream>
 
 namespace fs = std::filesystem;
@@ -27,6 +29,17 @@ std::string Trim(const std::string& s)
     return s.substr(a, b - a + 1);
 }
 
+// Extract meta.version from a layout JSON file. Returns 0 on failure.
+int LayoutMetaVersion(const fs::path& path)
+{
+    std::error_code ec;
+    if (!fs::exists(path, ec)) return 0;
+    auto result = core::LayoutParser::parseFile(path.string());
+    if (result.layout.has_value())
+        return result.layout->meta().version;
+    return 0;
+}
+
 // Collect the ".json" stems in a directory (layout ids). Missing dir -> empty.
 std::vector<std::string> LayoutIdsIn(const std::wstring& dir)
 {
@@ -35,7 +48,8 @@ std::vector<std::string> LayoutIdsIn(const std::wstring& dir)
     if (!fs::is_directory(fs::path(dir), ec)) return ids;
     for (const auto& e : fs::directory_iterator(fs::path(dir), ec)) {
         if (ec) break;
-        if (e.is_regular_file() && e.path().extension() == L".json")
+        std::error_code fec;
+        if (e.is_regular_file(fec) && !fec && e.path().extension() == L".json")
             ids.push_back(e.path().stem().string());
     }
     return ids;
@@ -71,22 +85,51 @@ int AutoMigration::SeedLayouts(const Paths& paths)
 
     auto bundled  = LayoutIdsIn(paths.bundledLayoutsDir);
     auto existing = LayoutIdsIn(paths.userLayoutsDir);
-    auto toCopy   = core::Migration::planLayoutSeed(bundled, existing);
 
-    int copied = 0;
+    // --- Phase 1: seed layouts that don't exist at all ---
+    auto toCopy = core::Migration::planLayoutSeed(bundled, existing);
+    int actions = 0;
     for (const auto& id : toCopy) {
         fs::path src = fs::path(paths.bundledLayoutsDir) / (id + ".json");
         fs::path dst = fs::path(paths.userLayoutsDir)    / (id + ".json");
-        // copy_file without overwrite: preserves any user file that appears mid-run.
         if (fs::copy_file(src, dst, fs::copy_options::skip_existing, ec)) {
-            ++copied;
+            ++actions;
             Logger::Instance().Info(L"Seeded layout: " + Utf8ToWide(id));
         } else if (ec) {
             Logger::Instance().Warn(L"Could not seed layout: " + Utf8ToWide(id));
             ec.clear();
         }
     }
-    return copied;
+
+    // --- Phase 2: upgrade existing layouts whose bundled version is newer ---
+    std::map<std::string, int> bundledVersions, userVersions;
+    for (const auto& id : bundled) {
+        fs::path src = fs::path(paths.bundledLayoutsDir) / (id + ".json");
+        bundledVersions[id] = LayoutMetaVersion(src);
+    }
+    for (const auto& id : existing) {
+        fs::path dst = fs::path(paths.userLayoutsDir) / (id + ".json");
+        userVersions[id] = LayoutMetaVersion(dst);
+    }
+    auto toUpgrade = core::Migration::planLayoutUpgrade(bundledVersions, userVersions);
+    for (const auto& id : toUpgrade) {
+        fs::path src = fs::path(paths.bundledLayoutsDir) / (id + ".json");
+        fs::path dst = fs::path(paths.userLayoutsDir)    / (id + ".json");
+        fs::path bak = fs::path(paths.userLayoutsDir)    / (id + ".json.bak");
+        // Back up the old user file, then overwrite with the newer bundled one.
+        if (!fs::copy_file(dst, bak, fs::copy_options::overwrite_existing, ec) && ec)
+            Logger::Instance().Warn(L"Could not back up layout: " + Utf8ToWide(id));
+        ec.clear();
+        if (fs::copy_file(src, dst, fs::copy_options::overwrite_existing, ec)) {
+            ++actions;
+            Logger::Instance().Info(L"Upgraded layout (backed up .bak): " + Utf8ToWide(id));
+        } else if (ec) {
+            Logger::Instance().Warn(L"Could not upgrade layout: " + Utf8ToWide(id));
+            ec.clear();
+        }
+    }
+
+    return actions;
 }
 
 int AutoMigration::MigrateConfigFile(const core::InstallationStatus& status,

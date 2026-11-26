@@ -66,3 +66,32 @@ TEST(Migration_LayoutSeed_PreservesUserOnlyLayouts)
     auto plan = Migration::planLayoutSeed(bundled, existing);
     CHECK(plan.empty());
 }
+
+TEST(Migration_LayoutUpgrade_NewerBundledUpgrades)
+{
+    // When the bundled version is higher, the layout should be in the upgrade list.
+    std::map<std::string, int> bundledVer = { {"old_uyghur", 6}, {"old_uyghur_qwerty", 3} };
+    std::map<std::string, int> userVer    = { {"old_uyghur", 4}, {"old_uyghur_qwerty", 1} };
+    auto plan = Migration::planLayoutUpgrade(bundledVer, userVer);
+    CHECK_EQ(plan.size(), size_t(2));
+    CHECK_EQ(plan[0], std::string("old_uyghur"));
+    CHECK_EQ(plan[1], std::string("old_uyghur_qwerty"));
+}
+
+TEST(Migration_LayoutUpgrade_EqualOrHigherUserPreserved)
+{
+    // When the user version is equal or higher, no upgrade.
+    std::map<std::string, int> bundledVer = { {"old_uyghur", 6}, {"old_uyghur_qwerty", 3} };
+    std::map<std::string, int> userVer    = { {"old_uyghur", 6}, {"old_uyghur_qwerty", 7}, {"my_custom", 1} };
+    auto plan = Migration::planLayoutUpgrade(bundledVer, userVer);
+    CHECK(plan.empty());
+}
+
+TEST(Migration_LayoutUpgrade_MissingUserNotUpgraded)
+{
+    // If the user doesn't have a layout at all, it's not an upgrade (it's a seed).
+    std::map<std::string, int> bundledVer = { {"old_uyghur", 6} };
+    std::map<std::string, int> userVer    = {};
+    auto plan = Migration::planLayoutUpgrade(bundledVer, userVer);
+    CHECK(plan.empty());
+}
